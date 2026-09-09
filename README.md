@@ -1,8 +1,8 @@
-﻿# 986Code Bridge for ChatGPT
+# 986Code Bridge for ChatGPT
 
 A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy**.
 
-**Current release:** `v0.1.0-alpha.2`
+**Current release:** `v0.1.0-alpha.3`
 **Status:** Alpha / working browser bridge; native companion remains optional and incomplete.
 
 986Code lets a user pass structured commands to a browser extension to inspect pages, manage tabs, click, type, tick controls, scroll, read values, and optionally use Chromium DevTools Protocol or a future native/SSH companion.
@@ -11,12 +11,14 @@ A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy*
 
 ## Design principles
 
-- **User controlled** â€” commands execute only in the browser profile where the extension is installed.
-- **Fail closed** â€” page commands do not silently fall back to an old tab.
-- **Explicit target for remote control** â€” automation from an extension command page should provide a `tabId`.
-- **No hardcoded credentials** â€” no user password, private key, API token, or personal host is embedded in source.
-- **Local command history** â€” history is stored in extension local storage and can be disabled/cleared.
-- **Optional elevated modes** â€” `debugger` and `nativeMessaging` are optional permissions.
+- **User controlled** — commands execute only in the browser profile where the extension is installed.
+- **Fail closed** — page commands do not silently fall back to an old tab.
+- **Explicit target for remote control** — automation from an extension command page should provide a `tabId`.
+- **User-owned identity** — each installation uses that user's own browser and ChatGPT session; 986Code provides no shared account.
+- **No hardcoded credentials** — no user password, private key, API token, session cookie, or personal host is embedded in source.
+- **Native-owned secrets** — SSH passwords, passphrases, private-key material and tokens belong in the OS/native credential layer, not extension storage.
+- **Redacted local audit history** — local history keeps operation metadata while typed values, SSH commands, credential fields and URL query/hash data are redacted.
+- **Optional elevated modes** — `debugger` and `nativeMessaging` are optional permissions.
 
 ## Verified in v0.1.0-alpha.2
 
@@ -74,10 +76,10 @@ If the active tab is an extension/internal browser page and no `tabId` is suppli
 Batch commands are executed sequentially and stop on the first failure by default.
 ## Targets
 
-- `page` / `web` â€” DOM-level automation through `bridge-content.js`.
-- `browser` / `tab` â€” tab listing, creation, activation, closing, navigation, reload, screenshot.
-- `cdp` / `power` â€” optional coordinate-level input through the Chromium debugger permission.
-- `native` / `ssh` / `terminal` â€” optional Native Messaging path for a local companion.
+- `page` / `web` — DOM-level automation through `bridge-content.js`.
+- `browser` / `tab` — tab listing, creation, activation, closing, navigation, reload, screenshot.
+- `cdp` / `power` — optional coordinate-level input through the Chromium debugger permission.
+- `native` / `ssh` / `terminal` — optional Native Messaging path for a local companion.
 
 The Native Messaging integration point is present, but the native companion is **not bundled as a finished component in this release**. Do not treat SSH/native mode as production-ready yet.
 
@@ -101,7 +103,7 @@ The Native Messaging integration point is present, but the native companion is *
 - Browser-protected pages such as `chrome://` / `opera://` cannot be controlled through the normal DOM bridge.
 - Host permissions are powerful. Install this extension only from source you trust and review.
 
-See [SECURITY.md](SECURITY.md) for reporting and operational guidance.
+See [SECURITY.md](SECURITY.md) for reporting and operational guidance, [PRIVACY.md](PRIVACY.md) for data handling, and [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) for the trust and identity boundary.
 
 ## Repository layout
 
@@ -112,6 +114,7 @@ CHANGELOG.md               Version history
 CONTRIBUTING.md            Contribution workflow
 docs/COMMAND_REFERENCE.md  Command and targeting reference
 LICENSE                    MIT license
+PRIVACY.md                 User-owned identity and data-handling policy
 SECURITY.md                Security policy
 ```
 
@@ -145,4 +148,4 @@ Source code is licensed under the [MIT License](LICENSE).
 
 The MIT grant does not grant trademark rights to the **AbeyyTechXy** or **986Code** names, logos, or branding.
 
-Copyright Â© 2026 AbeyyTechXy.
+Copyright © 2026 AbeyyTechXy.

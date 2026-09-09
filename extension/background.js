@@ -1,5 +1,60 @@
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
-const VERSION = '0.1.0-alpha.2';
+const VERSION = '0.1.0-alpha.3';
+
+const CREDENTIAL_FIELD_RE = /(^|[_-])(password|passphrase|secret|token|cookie|session|api.?key|private.?key|authorization|bearer)([_-]|$)/i;
+const AUDIT_REDACT_FIELDS = new Set(['value','text','profiledata','body','payload']);
+
+function hasInlineCredential(value) {
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(hasInlineCredential);
+  return Object.entries(value).some(([k,v]) => CREDENTIAL_FIELD_RE.test(k) || hasInlineCredential(v));
+}
+
+function sanitizeSshProfile(profile = {}) {
+  return {
+    host: String(profile.host || '').trim(),
+    port: Math.max(1, Math.min(65535, Number(profile.port || 22))),
+    username: String(profile.username || '').trim(),
+    keyPath: String(profile.keyPath || '').trim(),
+    authMethod: ['agent','keyfile'].includes(profile.authMethod) ? profile.authMethod : 'agent'
+  };
+}
+
+function safeUrlForAudit(raw = '') {
+  try { const u = new URL(String(raw)); return `${u.protocol}//${u.host}${u.pathname}`; }
+  catch (_) { return String(raw).split(/[?#]/)[0]; }
+}
+
+
+function redactForAudit(value, key = '') {
+  const lowerKey = String(key).toLowerCase();
+  if (CREDENTIAL_FIELD_RE.test(key) || AUDIT_REDACT_FIELDS.has(lowerKey) || (lowerKey === 'command' && (value === null || typeof value !== 'object'))) return '[REDACTED]';
+  if (Array.isArray(value)) return value.map((v) => redactForAudit(v));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k,v] of Object.entries(value)) out[k] = k.toLowerCase() === 'url' ? safeUrlForAudit(v) : redactForAudit(v, k);
+    return out;
+  }
+  return value;
+}
+
+async function migratePrivacyStorage() {
+  const current = await chrome.storage.local.get(null);
+  if (Number(current.privacySchemaVersion || 0) >= 1) return;
+  const remove = Object.keys(current).filter((k) => CREDENTIAL_FIELD_RE.test(k));
+  if (remove.length) await chrome.storage.local.remove(remove);
+  const sanitizedProfiles = {};
+  for (const [name, profile] of Object.entries(current.sshProfiles || {})) sanitizedProfiles[name] = sanitizeSshProfile(profile);
+  await chrome.storage.local.set({
+    sshProfiles: sanitizedProfiles,
+    commandHistory: [],
+    identityMode: 'user-session',
+    credentialPolicy: 'native-owned',
+    historyMode: 'metadata-redacted',
+    privacySchemaVersion: 1,
+    privacyMigratedAt: new Date().toISOString()
+  });
+}
 
 function errText(error) {
   return String(error?.message || error || 'Unknown error');
@@ -149,12 +204,14 @@ async function cdp(command) {
 }
 
 async function nativeCommand(command) {
+  if (hasInlineCredential(command)) throw new Error('Inline credentials are blocked. Keep passwords, tokens, passphrases and private keys in the user-owned native/OS credential layer.');
   if (!(await hasPermission('nativeMessaging'))) throw new Error('Native Bridge permission is not enabled. Enable it in Options first.');
   const enriched = { ...command };
+  if (enriched.profileData) enriched.profileData = sanitizeSshProfile(enriched.profileData);
   if ((String(command.target || '').toLowerCase() === 'ssh' || String(command.action || '').toLowerCase().startsWith('ssh.')) && command.profile && !command.profileData) {
     const { sshProfiles = {} } = await chrome.storage.local.get({ sshProfiles: {} });
     if (!sshProfiles[command.profile]) throw new Error(`SSH profile not found: ${command.profile}`);
-    enriched.profileData = sshProfiles[command.profile];
+    enriched.profileData = sanitizeSshProfile(sshProfiles[command.profile]);
   }
   return await chrome.runtime.sendNativeMessage(HOST_NAME, { version: VERSION, command: enriched });
 }
@@ -188,7 +245,7 @@ async function logRun(request, result) {
   if (!historyEnabled) return;
   const current = await chrome.storage.local.get({ commandHistory: [] });
   const history = Array.isArray(current.commandHistory) ? current.commandHistory : [];
-  history.unshift({ at: new Date().toISOString(), request, result });
+  history.unshift({ at: new Date().toISOString(), request: redactForAudit(request), result: redactForAudit(result) });
   await chrome.storage.local.set({ commandHistory: history.slice(0, Math.max(10, Math.min(500, Number(historyLimit) || 100))) });
 }
 
@@ -203,20 +260,28 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
+  await migratePrivacyStorage();
   await chrome.storage.local.set({
     installedVersion: VERSION,
     historyEnabled: true,
     historyLimit: 100,
+    historyMode: 'metadata-redacted',
+    identityMode: 'user-session',
+    credentialPolicy: 'native-owned',
     requireConfirmation: true
   });
 });
+
+chrome.runtime.onStartup.addListener(() => { migratePrivacyStorage().catch(() => {}); });
+migratePrivacyStorage().catch(() => {});
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (!request || request.channel !== '986code-control') return;
   (async () => {
     if (request.type === 'info') {
       const perms = await chrome.permissions.getAll();
-      return { ok: true, version: VERSION, extensionId: chrome.runtime.id, permissions: perms };
+      const policy = await chrome.storage.local.get({ identityMode:'user-session', credentialPolicy:'native-owned', historyMode:'metadata-redacted' });
+      return { ok: true, version: VERSION, extensionId: chrome.runtime.id, permissions: perms, ...policy };
     }
     if (request.type === 'execute') {
       const result = Array.isArray(request.commands)

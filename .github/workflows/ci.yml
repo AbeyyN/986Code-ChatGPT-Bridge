@@ -31,6 +31,9 @@ jobs:
       - name: Validate manifest JSON
         run: python -m json.tool extension/manifest.json > /dev/null
 
+      - name: Security architecture self-test
+        run: node tools/security-selftest.mjs
+
       - name: Check forbidden secret-like files
         shell: bash
         run: |

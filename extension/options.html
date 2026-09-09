@@ -8,13 +8,15 @@
 </head>
 <body>
   <main>
-    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.2</p></div></header>
+    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.3</p></div></header>
 
     <section class="card">
       <h2>Bridge identity</h2>
       <div class="kv"><span>Extension ID</span><code id="extensionId">…</code></div>
       <div class="kv"><span>Native host</span><code>com.abeyytechxy.986code_bridge</code></div>
-      <p class="note">The extension contains no hardcoded user IP, SSH username, password, or private key. Connection profiles are user-supplied.</p>
+      <div class="kv"><span>AI identity</span><code id="identityMode">user-session</code></div>
+      <div class="kv"><span>Credential policy</span><code id="credentialPolicy">native-owned</code></div>
+      <p class="note">986Code has no shared ChatGPT account, developer API key, password vault, or central user credential. Each installation uses the user's own browser/ChatGPT session.</p>
     </section>
 
     <section class="card">
@@ -26,12 +28,13 @@
 
     <section class="card">
       <h2>SSH profiles</h2>
-      <p class="note">Profiles are configuration only until the native companion is installed. Passwords are intentionally not stored here.</p>
+      <p class="note">Profiles store metadata only. Passwords, passphrases, tokens and private-key material are blocked from extension storage; authentication belongs to the user-owned native/OS layer.</p>
       <div class="grid">
         <label>Profile name<input id="profileName" placeholder="Pi" /></label>
         <label>Host<input id="profileHost" placeholder="192.168.1.98 or server.example.com" /></label>
         <label>Port<input id="profilePort" type="number" value="22" min="1" max="65535" /></label>
         <label>Username<input id="profileUser" placeholder="abeyy" /></label>
+        <label>Auth method<select id="profileAuth"><option value="agent">SSH Agent / OS vault (recommended)</option><option value="keyfile">Key file reference</option></select></label>
         <label>Key path<input id="profileKey" placeholder="C:\\Users\\you\\.ssh\\id_ed25519" /></label>
       </div>
       <button id="saveProfile" class="primary">Save profile</button>
@@ -43,7 +46,7 @@
       <label class="check"><input type="checkbox" id="historyEnabled" checked /> Keep local command history</label>
       <label>History limit<input id="historyLimit" type="number" min="10" max="500" value="100" /></label>
       <div class="row"><button id="saveSettings" class="primary">Save settings</button><button id="clearHistory">Clear history</button></div>
-      <p class="note">History is stored locally in the extension's storage. This alpha build does not upload browsing content or command logs to an external service.</p>
+      <p class="note">History is local metadata only. Typed values, SSH commands, profile payloads, tokens, cookies and URL query/hash data are redacted or omitted before storage. This build does not upload command logs to a 986Code service.</p>
     </section>
 
     <section class="card">

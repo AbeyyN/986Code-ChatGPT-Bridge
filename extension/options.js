@@ -3,6 +3,8 @@ const $ = (id) => document.getElementById(id);
 async function info() {
   const r = await chrome.runtime.sendMessage({ channel:'986code-control', type:'info' });
   $('extensionId').textContent = r.extensionId || chrome.runtime.id;
+  $('identityMode').textContent = r.identityMode || 'user-session';
+  $('credentialPolicy').textContent = r.credentialPolicy || 'native-owned';
   return r;
 }
 
@@ -28,7 +30,7 @@ async function togglePermission(permission, btn) {
 
 function profileHtml(name, p) {
   const safe = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  return `<div class="profile"><div><strong>${safe(name)}</strong><br><small>${safe(p.username)}@${safe(p.host)}:${safe(p.port || 22)} · ${safe(p.keyPath || 'SSH agent/default key')}</small></div><button data-delete="${safe(name)}">Delete</button></div>`;
+  return `<div class="profile"><div><strong>${safe(name)}</strong><br><small>${safe(p.username)}@${safe(p.host)}:${safe(p.port || 22)} · ${safe(p.authMethod || 'agent')} · ${safe(p.keyPath || 'SSH agent/OS vault')}</small></div><button data-delete="${safe(name)}">Delete</button></div>`;
 }
 
 async function loadProfiles() {
@@ -50,7 +52,7 @@ $('saveProfile').addEventListener('click', async () => {
   const username = $('profileUser').value.trim();
   if (!name || !host || !username) return alert('Profile name, host and username are required.');
   const { sshProfiles = {} } = await chrome.storage.local.get({ sshProfiles:{} });
-  sshProfiles[name] = { host, port:Number($('profilePort').value || 22), username, keyPath:$('profileKey').value.trim() };
+  sshProfiles[name] = { host, port:Number($('profilePort').value || 22), username, authMethod:$('profileAuth').value || 'agent', keyPath:$('profileKey').value.trim() };
   await chrome.storage.local.set({ sshProfiles });
   await loadProfiles();
 });

@@ -17,4 +17,4 @@ Please include the affected version, browser/OS, reproduction steps, expected be
 
 ## Security model
 
-986Code Bridge is user-controlled. Browser mutations should target an explicit tab where possible. Commands fail closed when a safe target cannot be resolved. SSH/native secrets must remain on the native side and must never be committed to this repository.
+986Code Bridge is user-controlled. Browser mutations should target an explicit tab where possible. Commands fail closed when a safe target cannot be resolved. Every installation uses the user's own browser/ChatGPT session; 986Code has no central ChatGPT account or shared developer credential. SSH/native secrets must remain on the native/OS side and must never be committed to this repository. Raw typed values and SSH commands are redacted from local audit history.

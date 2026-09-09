@@ -11,6 +11,19 @@ The project uses semantic versioning while the command API is still in alpha.
 - Automated browser integration tests.
 - Stronger command provenance and operation IDs.
 
+## [0.1.0-alpha.3] - 2026-09-09
+
+### Added
+- Explicit user-owned identity policy: each installation uses the user's own browser/ChatGPT session.
+- Native-owned credential boundary for SSH and future local integrations.
+- Security architecture documentation and privacy schema migration.
+
+### Security
+- Inline password, token, passphrase, cookie, API-key and private-key fields are blocked from native commands.
+- SSH profile storage is restricted to non-secret metadata.
+- Local command history now stores redacted metadata; typed values, SSH commands, profile payloads and URL query/hash data are removed.
+- Legacy alpha command history is cleared once during privacy migration.
+
 ## [0.1.0-alpha.2] - 2026-09-09
 
 ### Added
