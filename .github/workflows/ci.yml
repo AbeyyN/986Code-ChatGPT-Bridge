@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check extension/background.js
+          node --check extension/bridge-content.js
+          node --check extension/command.js
+          node --check extension/options.js
+          node --check extension/popup.js
+      - name: Validate manifest JSON
+        run: python -m json.tool extension/manifest.json > /dev/null
+
+      - name: Check forbidden secret-like files
+        shell: bash
+        run: |
+          test -z "$(find . -type f \( -name '*.pem' -o -name '*.key' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '.env' -o -name '.env.*' \) -not -path './.git/*' -print -quit)"
+
+      - name: Git whitespace check
+        run: git diff --check HEAD^
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'

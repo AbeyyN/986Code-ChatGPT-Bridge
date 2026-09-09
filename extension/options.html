@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>986Code Bridge Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main>
+    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.2</p></div></header>
+
+    <section class="card">
+      <h2>Bridge identity</h2>
+      <div class="kv"><span>Extension ID</span><code id="extensionId">…</code></div>
+      <div class="kv"><span>Native host</span><code>com.abeyytechxy.986code_bridge</code></div>
+      <p class="note">The extension contains no hardcoded user IP, SSH username, password, or private key. Connection profiles are user-supplied.</p>
+    </section>
+
+    <section class="card">
+      <h2>Power Mode</h2>
+      <div class="perm"><div><strong>Debugger / CDP</strong><p>Optional coordinate-level mouse and keyboard input using Chromium DevTools Protocol.</p></div><button id="debuggerBtn">Check</button></div>
+      <div class="perm"><div><strong>Native Messaging</strong><p>Optional local companion for SSH, PowerShell, CMD, and OS-level operations.</p></div><button id="nativeBtn">Check</button></div>
+      <p id="permStatus" class="note"></p>
+    </section>
+
+    <section class="card">
+      <h2>SSH profiles</h2>
+      <p class="note">Profiles are configuration only until the native companion is installed. Passwords are intentionally not stored here.</p>
+      <div class="grid">
+        <label>Profile name<input id="profileName" placeholder="Pi" /></label>
+        <label>Host<input id="profileHost" placeholder="192.168.1.98 or server.example.com" /></label>
+        <label>Port<input id="profilePort" type="number" value="22" min="1" max="65535" /></label>
+        <label>Username<input id="profileUser" placeholder="abeyy" /></label>
+        <label>Key path<input id="profileKey" placeholder="C:\\Users\\you\\.ssh\\id_ed25519" /></label>
+      </div>
+      <button id="saveProfile" class="primary">Save profile</button>
+      <div id="profiles" class="profiles"></div>
+    </section>
+
+    <section class="card">
+      <h2>Privacy & logs</h2>
+      <label class="check"><input type="checkbox" id="historyEnabled" checked /> Keep local command history</label>
+      <label>History limit<input id="historyLimit" type="number" min="10" max="500" value="100" /></label>
+      <div class="row"><button id="saveSettings" class="primary">Save settings</button><button id="clearHistory">Clear history</button></div>
+      <p class="note">History is stored locally in the extension's storage. This alpha build does not upload browsing content or command logs to an external service.</p>
+    </section>
+
+    <section class="card">
+      <h2>Command examples</h2>
+      <pre>{ "target":"page", "action":"click", "text":"Upload new add-on" }
+{ "target":"page", "action":"type", "selector":"#email", "value":"user@example.com" }
+{ "target":"browser", "action":"tab.list" }
+{ "target":"cdp", "action":"cdp.click", "x":420, "y":300 }
+{ "target":"ssh", "action":"ssh.exec", "profile":"Pi", "command":"uname -a" }</pre>
+    </section>
+
+    <footer>986Code / AbeyyTechXy · Third-party project; not affiliated with or endorsed by OpenAI.</footer>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

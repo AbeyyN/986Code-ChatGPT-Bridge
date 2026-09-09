@@ -1,0 +1,24 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local secrets/config
+.env
+.env.*
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Build/package output
+*.zip
+*.crx
+*.pem
+release/
+dist/
+
+# Logs/temp
+*.log
+*.tmp

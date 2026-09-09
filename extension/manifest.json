@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "986Code Bridge for ChatGPT",
+  "short_name": "986Code Bridge",
+  "version": "0.1.0.2",
+  "version_name": "0.1.0-alpha.2",
+  "description": "User-controlled browser automation bridge for ChatGPT: inspect, click, type, tick, scroll, manage tabs, and optionally connect to a local native/SSH bridge.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "986Code Bridge",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "optional_permissions": [
+    "debugger",
+    "nativeMessaging"
+  ]
+}
