@@ -8,7 +8,7 @@
 </head>
 <body>
   <main>
-    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.3</p></div></header>
+    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.4</p></div></header>
 
     <section class="card">
       <h2>Bridge identity</h2>
@@ -16,19 +16,33 @@
       <div class="kv"><span>Native host</span><code>com.abeyytechxy.986code_bridge</code></div>
       <div class="kv"><span>AI identity</span><code id="identityMode">user-session</code></div>
       <div class="kv"><span>Credential policy</span><code id="credentialPolicy">native-owned</code></div>
-      <p class="note">986Code has no shared ChatGPT account, developer API key, password vault, or central user credential. Each installation uses the user's own browser/ChatGPT session.</p>
+      <div class="kv"><span>Instance ID</span><code id="instanceId">…</code></div>
+      <label>Instance label<input id="instanceLabel" placeholder="PERSONAL-OPERA" maxlength="64" /></label>
+      <div class="row"><button id="saveIdentity" class="primary">Save instance</button><button id="connectNative">Connect control plane</button></div>
+      <p class="note">Each browser profile gets its own instance ID. Use labels such as PERSONAL-OPERA and WORK-OPERA to prevent cross-profile targeting.</p>
     </section>
 
     <section class="card">
-      <h2>Power Mode</h2>
-      <div class="perm"><div><strong>Debugger / CDP</strong><p>Optional coordinate-level mouse and keyboard input using Chromium DevTools Protocol.</p></div><button id="debuggerBtn">Check</button></div>
-      <div class="perm"><div><strong>Native Messaging</strong><p>Optional local companion for SSH, PowerShell, CMD, and OS-level operations.</p></div><button id="nativeBtn">Check</button></div>
+      <h2>Local control plane</h2>
+      <div class="perm"><div><strong>Native Messaging transport</strong><p>Required for the secure loopback control plane. No command payload is placed in the browser URL.</p></div><button id="nativeBtn">Check</button></div>
+      <div class="kv"><span>Status</span><code id="nativeStatus">disconnected</code></div>
+      <div class="kv"><span>Loopback endpoint</span><code id="nativeEndpoint">not connected</code></div>
       <p id="permStatus" class="note"></p>
     </section>
 
     <section class="card">
+      <h2>Permission tiers</h2>
+      <label class="check"><input type="checkbox" id="tierRead" checked /> READ — inspect pages, read values, list tabs, screenshots</label>
+      <label class="check"><input type="checkbox" id="tierWrite" checked /> WRITE — click, type, check controls, navigate and manage tabs</label>
+      <label class="check"><input type="checkbox" id="tierPower" /> POWER — CDP and native/SSH execution</label>
+      <div class="perm"><div><strong>Debugger / CDP browser permission</strong><p>Optional coordinate-level mouse and keyboard input. POWER tier alone does not grant this Chromium permission.</p></div><button id="debuggerBtn">Check</button></div>
+      <button id="saveTiers" class="primary">Save permission tiers</button>
+      <p class="note">POWER is disabled by default. The native host enforces POWER again before SSH execution.</p>
+    </section>
+
+    <section class="card">
       <h2>SSH profiles</h2>
-      <p class="note">Profiles store metadata only. Passwords, passphrases, tokens and private-key material are blocked from extension storage; authentication belongs to the user-owned native/OS layer.</p>
+      <p class="note">Profiles are stored by the native companion under the current Windows user, not in browser extension storage. Passwords, passphrases, tokens and private-key material remain outside the extension.</p>
       <div class="grid">
         <label>Profile name<input id="profileName" placeholder="Pi" /></label>
         <label>Host<input id="profileHost" placeholder="192.168.1.98 or server.example.com" /></label>
@@ -46,7 +60,7 @@
       <label class="check"><input type="checkbox" id="historyEnabled" checked /> Keep local command history</label>
       <label>History limit<input id="historyLimit" type="number" min="10" max="500" value="100" /></label>
       <div class="row"><button id="saveSettings" class="primary">Save settings</button><button id="clearHistory">Clear history</button></div>
-      <p class="note">History is local metadata only. Typed values, SSH commands, profile payloads, tokens, cookies and URL query/hash data are redacted or omitted before storage. This build does not upload command logs to a 986Code service.</p>
+      <p class="note">History is local metadata only. Typed values, SSH commands, profile payloads, tokens, cookies and URL query/hash data are redacted or omitted before storage. The secure control plane binds to 127.0.0.1 only and uses an ephemeral per-instance bearer token stored on the native side.</p>
     </section>
 
     <section class="card">

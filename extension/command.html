@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>986Code Bridge Command</title>
+  <title>986Code Bridge Control Plane</title>
   <style>
-    :root{color-scheme:dark;--orange:#ff8a00;--bg:#070707;--card:#111214;--line:#2a2d31;--text:#f4f4f5;--muted:#90959e;--ok:#71f0aa;--bad:#ff8d8d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#311d00 0,#080808 38%,#050505 100%);font:14px/1.5 Inter,Segoe UI,Arial,sans-serif;color:var(--text)}main{max-width:920px;margin:0 auto;padding:28px 18px}header{display:flex;align-items:center;gap:14px;margin-bottom:18px}header img{width:62px;height:62px;border-radius:16px;box-shadow:0 0 26px rgba(255,138,0,.3)}h1{font-size:22px;margin:0}header p{margin:2px 0;color:var(--muted)}.card{background:rgba(17,18,20,.95);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}pre{white-space:pre-wrap;word-break:break-word;background:#08090a;border:1px solid #26292d;border-radius:9px;padding:12px;max-height:55vh;overflow:auto;color:var(--ok)}.error pre{color:var(--bad)}code{color:#ffc36a}.muted{color:var(--muted);font-size:12px}.pill{display:inline-block;border:1px solid #533712;background:#22180d;border-radius:999px;padding:4px 8px;color:#ffbf63;font-size:11px}
+    :root{color-scheme:dark;--orange:#ff8a00;--bg:#070707;--card:#111214;--line:#2a2d31;--text:#f4f4f5;--muted:#90959e;--ok:#71f0aa;--bad:#ff8d8d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#311d00 0,#080808 38%,#050505 100%);font:14px/1.5 Inter,Segoe UI,Arial,sans-serif;color:var(--text)}main{max-width:920px;margin:0 auto;padding:28px 18px}header{display:flex;align-items:center;gap:14px;margin-bottom:18px}header img{width:62px;height:62px;border-radius:16px;box-shadow:0 0 26px rgba(255,138,0,.3)}h1{font-size:22px;margin:0}header p{margin:2px 0;color:var(--muted)}.card{background:rgba(17,18,20,.95);border:1px solid var(--line);border-radius:14px;padding:16px;margin:10px 0}pre{white-space:pre-wrap;word-break:break-word;background:#08090a;border:1px solid #26292d;border-radius:9px;padding:12px;max-height:55vh;overflow:auto;color:var(--ok)}.error pre{color:var(--bad)}.muted{color:var(--muted);font-size:12px}.pill{display:inline-block;border:1px solid #533712;background:#22180d;border-radius:999px;padding:4px 8px;color:#ffbf63;font-size:11px}
   </style>
 </head>
 <body>
 <main>
-  <header><img src="icons/icon128.png" alt="986Code"><div><h1>986Code Bridge Command</h1><p>Machine-readable ingress for ChatGPT / connector-driven control.</p></div></header>
-  <section class="card"><span class="pill" id="state">RUNNING</span><p class="muted">This page executes only the explicit JSON command passed in its URL. No command means no action.</p></section>
-  <section class="card"><strong>Command</strong><pre id="command">Waiting…</pre></section>
-  <section class="card" id="resultCard"><strong>Result</strong><pre id="result">Waiting…</pre></section>
+  <header><img src="icons/icon128.png" alt="986Code"><div><h1>986Code Bridge Control Plane</h1><p>Safe status page for the local browser instance.</p></div></header>
+  <section class="card"><span class="pill" id="state">CHECKING</span><p class="muted">URL command payload execution was removed in alpha.4. Commands now use the authenticated native loopback control plane.</p></section>
+  <section class="card"><strong>Ingress policy</strong><pre id="command">Loading…</pre></section>
+  <section class="card" id="resultCard"><strong>Instance status</strong><pre id="result">Loading…</pre></section>
 </main>
 <script src="command.js"></script>
 </body>

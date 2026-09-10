@@ -1,8 +1,45 @@
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
-const VERSION = '0.1.0-alpha.3';
+const VERSION = '0.1.0-alpha.4';
 
 const CREDENTIAL_FIELD_RE = /(^|[_-])(password|passphrase|secret|token|cookie|session|api.?key|private.?key|authorization|bearer)([_-]|$)/i;
 const AUDIT_REDACT_FIELDS = new Set(['value','text','profiledata','body','payload']);
+
+const TIER_DEFAULTS = { read: true, write: true, power: false };
+let nativePort = null;
+let nativeReady = false;
+let nativeStatus = { connected:false, error:null, controlPlane:null, nativeVersion:null };
+let nativeReconnectTimer = null;
+const nativePending = new Map();
+
+function uuid() {
+  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function ensureInstanceIdentity() {
+  const current = await chrome.storage.local.get({ instanceId:null, instanceLabel:null, permissionTiers:TIER_DEFAULTS });
+  let changed = false;
+  if (!current.instanceId) { current.instanceId = uuid(); changed = true; }
+  if (!current.instanceLabel) { current.instanceLabel = `OPERA-${String(current.instanceId).slice(0,8).toUpperCase()}`; changed = true; }
+  current.permissionTiers = { ...TIER_DEFAULTS, ...(current.permissionTiers || {}) };
+  if (changed) await chrome.storage.local.set({ instanceId:current.instanceId, instanceLabel:current.instanceLabel, permissionTiers:current.permissionTiers });
+  return current;
+}
+
+function requiredTier(command = {}) {
+  const target = String(command.target || 'page').toLowerCase();
+  const action = String(command.action || '').toLowerCase();
+  if (['cdp','power','native','ssh','terminal'].includes(target) || action.startsWith('cdp.') || action.startsWith('ssh.')) return 'power';
+  if (['browser','tab'].includes(target)) return ['tab.list','tabs','capture','screenshot'].includes(action) ? 'read' : 'write';
+  return ['read','inspect','ping','wait'].includes(action) ? 'read' : 'write';
+}
+
+async function enforceTier(command = {}) {
+  const tier = requiredTier(command);
+  const { permissionTiers = TIER_DEFAULTS } = await chrome.storage.local.get({ permissionTiers:TIER_DEFAULTS });
+  const effective = { ...TIER_DEFAULTS, ...permissionTiers };
+  if (effective[tier] !== true) throw new Error(`${tier.toUpperCase()} permission tier is disabled for this 986Code browser instance.`);
+  return tier;
+}
 
 function hasInlineCredential(value) {
   if (!value || typeof value !== 'object') return false;
@@ -38,9 +75,66 @@ function redactForAudit(value, key = '') {
   return value;
 }
 
+
+async function handleNativePortMessage(message = {}) {
+  if (message.type === 'hello.ack') {
+    nativeReady = message.ok === true;
+    setNativeStatus({ connected:nativeReady, error:nativeReady ? null : (message.error || 'Native hello failed'), controlPlane:message.controlPlane || null, nativeVersion:message.nativeVersion || null });
+    if (nativeReady) migrateSshProfilesToNative().catch((error) => setNativeStatus({ error:error.message }));
+    return;
+  }
+  if (message.type === 'execute') {
+    const requestId = String(message.requestId || '');
+    let result;
+    try { result = await executeSingle(message.command || {}); }
+    catch (error) { result = { ok:false, error:errText(error) }; }
+    try { nativePort?.postMessage({ type:'result', requestId, result }); } catch (_) {}
+    await logRun({ channel:'986code-native-control', type:'execute', command:message.command || {} }, result);
+    return;
+  }
+  if (message.type === 'native.response') {
+    const pending = nativePending.get(String(message.requestId || ''));
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    nativePending.delete(String(message.requestId));
+    pending.resolve(message.result || { ok:false, error:'Empty native response' });
+    return;
+  }
+  if (message.type === 'error') setNativeStatus({ error:message.error || 'Native host error' });
+}
+
+async function connectControlPlane() {
+  if (!(await hasPermission('nativeMessaging'))) {
+    setNativeStatus({ connected:false, error:'nativeMessaging permission is disabled', controlPlane:null });
+    return false;
+  }
+  if (nativePort) return nativeReady;
+  const state = await ensureInstanceIdentity();
+  try {
+    nativePort = chrome.runtime.connectNative(HOST_NAME);
+    nativeReady = false;
+    setNativeStatus({ connected:false, error:null, controlPlane:null });
+    nativePort.onMessage.addListener((message) => { handleNativePortMessage(message).catch((error) => setNativeStatus({ error:error.message })); });
+    nativePort.onDisconnect.addListener(() => {
+      const error = chrome.runtime.lastError?.message || 'Native host disconnected';
+      nativePort = null; nativeReady = false;
+      setNativeStatus({ connected:false, error, controlPlane:null });
+      for (const [id,pending] of nativePending) { clearTimeout(pending.timer); pending.reject(new Error(error)); nativePending.delete(id); }
+      scheduleNativeReconnect();
+    });
+    nativePort.postMessage({ type:'hello', instanceId:state.instanceId, label:state.instanceLabel, permissions:state.permissionTiers, extensionVersion:VERSION });
+    return true;
+  } catch (error) {
+    nativePort = null; nativeReady = false;
+    setNativeStatus({ connected:false, error:errText(error), controlPlane:null });
+    scheduleNativeReconnect();
+    return false;
+  }
+}
+
 async function migratePrivacyStorage() {
   const current = await chrome.storage.local.get(null);
-  if (Number(current.privacySchemaVersion || 0) >= 1) return;
+  if (Number(current.privacySchemaVersion || 0) >= 2) return;
   const remove = Object.keys(current).filter((k) => CREDENTIAL_FIELD_RE.test(k));
   if (remove.length) await chrome.storage.local.remove(remove);
   const sanitizedProfiles = {};
@@ -51,11 +145,49 @@ async function migratePrivacyStorage() {
     identityMode: 'user-session',
     credentialPolicy: 'native-owned',
     historyMode: 'metadata-redacted',
-    privacySchemaVersion: 1,
+    privacySchemaVersion: 2,
     privacyMigratedAt: new Date().toISOString()
   });
 }
 
+
+function setNativeStatus(patch) {
+  nativeStatus = { ...nativeStatus, ...patch };
+  chrome.storage.session.set({ nativeStatus }).catch(() => {});
+}
+
+function scheduleNativeReconnect(delay = 3000) {
+  clearTimeout(nativeReconnectTimer);
+  nativeReconnectTimer = setTimeout(() => { connectControlPlane().catch(() => {}); }, delay);
+}
+
+async function nativeRequest(action, payload = {}, timeoutMs = 30000) {
+  await connectControlPlane();
+  if (!nativePort || !nativeReady) throw new Error(nativeStatus.error || 'Native control plane is not ready.');
+  const requestId = uuid();
+  return await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { nativePending.delete(requestId); reject(new Error(`Native request timeout: ${action}`)); }, timeoutMs);
+    nativePending.set(requestId, { resolve, reject, timer });
+    nativePort.postMessage({ type:'native.request', requestId, action, ...payload });
+  });
+}
+
+async function migrateSshProfilesToNative() {
+  const current = await chrome.storage.local.get({ sshProfiles:{}, sshProfilesMigrated:false });
+  if (current.sshProfilesMigrated) return;
+  for (const [name, profile] of Object.entries(current.sshProfiles || {})) {
+    const result = await nativeRequest('profile.save', { name, profile:sanitizeSshProfile(profile) });
+    if (!result?.ok) throw new Error(result?.error || `Failed to migrate SSH profile ${name}`);
+  }
+  await chrome.storage.local.remove('sshProfiles');
+  await chrome.storage.local.set({ sshProfilesMigrated:true, sshProfilesMigratedAt:new Date().toISOString() });
+}
+
+async function syncNativePolicy() {
+  if (!nativePort || !nativeReady) return;
+  const state = await ensureInstanceIdentity();
+  nativePort.postMessage({ type:'policy.update', requestId:uuid(), label:state.instanceLabel, permissions:state.permissionTiers });
+}
 function errText(error) {
   return String(error?.message || error || 'Unknown error');
 }
@@ -205,18 +337,15 @@ async function cdp(command) {
 
 async function nativeCommand(command) {
   if (hasInlineCredential(command)) throw new Error('Inline credentials are blocked. Keep passwords, tokens, passphrases and private keys in the user-owned native/OS credential layer.');
-  if (!(await hasPermission('nativeMessaging'))) throw new Error('Native Bridge permission is not enabled. Enable it in Options first.');
-  const enriched = { ...command };
-  if (enriched.profileData) enriched.profileData = sanitizeSshProfile(enriched.profileData);
-  if ((String(command.target || '').toLowerCase() === 'ssh' || String(command.action || '').toLowerCase().startsWith('ssh.')) && command.profile && !command.profileData) {
-    const { sshProfiles = {} } = await chrome.storage.local.get({ sshProfiles: {} });
-    if (!sshProfiles[command.profile]) throw new Error(`SSH profile not found: ${command.profile}`);
-    enriched.profileData = sanitizeSshProfile(sshProfiles[command.profile]);
-  }
-  return await chrome.runtime.sendNativeMessage(HOST_NAME, { version: VERSION, command: enriched });
+  if (!(await hasPermission('nativeMessaging'))) throw new Error('Native Control Plane permission is not enabled. Enable it in Options first.');
+  const target = String(command.target || '').toLowerCase();
+  const action = String(command.action || '').toLowerCase();
+  if (target === 'ssh' || action.startsWith('ssh.')) return await nativeRequest('ssh.exec', { command:{ ...command, profileData:undefined } }, Number(command.timeoutMs || 30000));
+  return await nativeRequest('native.info');
 }
 
 async function executeSingle(command = {}) {
+  await enforceTier(command);
   const target = String(command.target || 'page').toLowerCase();
   if (target === 'page' || target === 'web') return await pageCommand(command, command.tabId);
   if (target === 'browser' || target === 'tab') return await browserCommand(command);
@@ -261,6 +390,7 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
 
 chrome.runtime.onInstalled.addListener(async () => {
   await migratePrivacyStorage();
+  const state = await ensureInstanceIdentity();
   await chrome.storage.local.set({
     installedVersion: VERSION,
     historyEnabled: true,
@@ -268,12 +398,16 @@ chrome.runtime.onInstalled.addListener(async () => {
     historyMode: 'metadata-redacted',
     identityMode: 'user-session',
     credentialPolicy: 'native-owned',
+    permissionTiers:state.permissionTiers,
     requireConfirmation: true
   });
+  connectControlPlane().catch(() => {});
 });
 
-chrome.runtime.onStartup.addListener(() => { migratePrivacyStorage().catch(() => {}); });
-migratePrivacyStorage().catch(() => {});
+chrome.runtime.onStartup.addListener(() => { Promise.all([migratePrivacyStorage(), ensureInstanceIdentity()]).then(() => connectControlPlane()).catch(() => {}); });
+chrome.permissions.onAdded.addListener((permissions) => { if ((permissions.permissions || []).includes('nativeMessaging')) connectControlPlane().catch(() => {}); });
+chrome.permissions.onRemoved.addListener((permissions) => { if ((permissions.permissions || []).includes('nativeMessaging')) { try { nativePort?.disconnect(); } catch (_) {} nativePort=null; nativeReady=false; setNativeStatus({connected:false,error:'nativeMessaging permission removed',controlPlane:null}); } });
+Promise.all([migratePrivacyStorage(), ensureInstanceIdentity()]).then(() => connectControlPlane()).catch(() => {});
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (!request || request.channel !== '986code-control') return;
@@ -281,7 +415,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.type === 'info') {
       const perms = await chrome.permissions.getAll();
       const policy = await chrome.storage.local.get({ identityMode:'user-session', credentialPolicy:'native-owned', historyMode:'metadata-redacted' });
-      return { ok: true, version: VERSION, extensionId: chrome.runtime.id, permissions: perms, ...policy };
+      const state = await ensureInstanceIdentity();
+      return { ok:true, version:VERSION, extensionId:chrome.runtime.id, permissions:perms, ...policy, instanceId:state.instanceId, instanceLabel:state.instanceLabel, permissionTiers:state.permissionTiers, nativeStatus };
     }
     if (request.type === 'execute') {
       const result = Array.isArray(request.commands)
@@ -294,6 +429,23 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       await chrome.storage.local.set({ commandHistory: [] });
       return { ok: true };
     }
+    if (request.type === 'instance.update') {
+      const state = await ensureInstanceIdentity();
+      const label = String(request.instanceLabel || state.instanceLabel).trim().slice(0, 64) || state.instanceLabel;
+      const tiers = { ...TIER_DEFAULTS, ...(request.permissionTiers || state.permissionTiers) };
+      tiers.read = tiers.read !== false; tiers.write = tiers.write === true; tiers.power = tiers.power === true;
+      await chrome.storage.local.set({ instanceLabel:label, permissionTiers:tiers });
+      await syncNativePolicy();
+      return { ok:true, instanceId:state.instanceId, instanceLabel:label, permissionTiers:tiers };
+    }
+    if (request.type === 'native.connect') {
+      const connected = await connectControlPlane();
+      return { ok:connected || nativeReady, nativeStatus };
+    }
+    if (request.type === 'native.status') return { ok:true, nativeStatus };
+    if (request.type === 'native.profile.list') return await nativeRequest('profile.list');
+    if (request.type === 'native.profile.save') return await nativeRequest('profile.save', { name:request.name, profile:sanitizeSshProfile(request.profile || {}) });
+    if (request.type === 'native.profile.delete') return await nativeRequest('profile.delete', { name:request.name });
     throw new Error(`Unknown request type: ${request.type}`);
   })().then(sendResponse).catch((error) => sendResponse({ ok: false, error: errText(error) }));
   return true;

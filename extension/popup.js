@@ -22,6 +22,17 @@ async function send(payload) {
   return await chrome.runtime.sendMessage({ channel: '986code-control', ...payload });
 }
 
+async function refreshBridge() {
+  try {
+    const r = await send({ type:'info' });
+    $('instanceLabelPopup').textContent = r.instanceLabel || r.instanceId || 'local instance';
+    $('controlStatus').textContent = r.nativeStatus?.connected ? 'control plane ready' : 'local only';
+  } catch (_) {
+    $('instanceLabelPopup').textContent = 'unknown instance';
+    $('controlStatus').textContent = 'status unavailable';
+  }
+}
+
 async function refreshTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   $('tabTitle').textContent = tab?.title || 'No active tab';
@@ -45,6 +56,7 @@ async function run() {
     $('runBtn').disabled = false;
     $('runBtn').textContent = 'Run command';
     await refreshTab();
+    await refreshBridge();
   }
 }
 
@@ -70,3 +82,4 @@ mode.addEventListener('change', () => {
 
 command.value = pretty(templates.click);
 refreshTab().catch(() => {});
+refreshBridge().catch(() => {});

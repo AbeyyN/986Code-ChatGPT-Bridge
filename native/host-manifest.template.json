@@ -1,0 +1,9 @@
+{
+  "name": "com.abeyytechxy.986code_bridge",
+  "description": "986Code Bridge Native Control Plane",
+  "path": "__HOST_EXE__",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://__EXTENSION_ID__/"
+  ]
+}
