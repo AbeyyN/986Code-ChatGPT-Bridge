@@ -1,5 +1,5 @@
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
-const VERSION = '0.1.0-alpha.3';
+const VERSION = '0.1.0-alpha.4';
 
 const CREDENTIAL_FIELD_RE = /(^|[_-])(password|passphrase|secret|token|cookie|session|api.?key|private.?key|authorization|bearer)([_-]|$)/i;
 const AUDIT_REDACT_FIELDS = new Set(['value','text','profiledata','body','payload']);
@@ -171,7 +171,7 @@ async function hasPermission(permission) {
 }
 
 async function cdp(command) {
-  if (!(await hasPermission('debugger'))) throw new Error('Power Mode permission "debugger" is not enabled. Enable it in Options first.');
+  if (!(await hasPermission('debugger'))) throw new Error('Power Mode permission "debugger" is unavailable. Reload or reinstall this extension build.');
   const tab = command.tabId ? await chrome.tabs.get(Number(command.tabId)) : await activeTab();
   const target = { tabId: tab.id };
   try { await chrome.debugger.attach(target, '1.3'); } catch (error) {
