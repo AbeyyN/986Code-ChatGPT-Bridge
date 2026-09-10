@@ -3,120 +3,208 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const http = require('node:http');
 
+const VERSION = '0.1.0-alpha.4';
 const HOME = process.env['986CODE_HOME'] || path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');
 const INSTANCE_DIR = path.join(HOME, 'instances');
 const PROFILE_FILE = path.join(HOME, 'profiles.json');
 
+function fail(message, code = 1) {
+  console.error(message);
+  process.exit(code);
+}
+
+function parseArgs(argv) {
+  const out = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) { out._.push(arg); continue; }
+    const key = arg.slice(2);
+    const next = argv[i + 1];
+    if (next !== undefined && !next.startsWith('--')) { out[key] = next; i++; }
+    else out[key] = true;
+  }
+  return out;
+}
+
 function readJson(file, fallback) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { return fallback; }
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (_) { return fallback; }
 }
 
-function instances() {
+function writeJsonAtomic(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  fs.renameSync(tmp, file);
+}
+
+function sanitizeProfile(profile = {}) {
+  const authMethod = ['agent', 'keyfile'].includes(profile.authMethod) ? profile.authMethod : 'agent';
+  return {
+    host: String(profile.host || '').trim(),
+    port: Math.max(1, Math.min(65535, Number(profile.port || 22))),
+    username: String(profile.username || '').trim(),
+    authMethod,
+    keyPath: authMethod === 'keyfile' ? String(profile.keyPath || '').trim() : ''
+  };
+}
+
+function loadInstances() {
+  if (!fs.existsSync(INSTANCE_DIR)) return [];
+  const out = [];
+  for (const name of fs.readdirSync(INSTANCE_DIR)) {
+    if (!name.endsWith('.json')) continue;
+    const item = readJson(path.join(INSTANCE_DIR, name), null);
+    if (item?.instanceId && item?.port && item?.token) out.push(item);
+  }
+  return out.sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+function publicInstance(item) {
+  return {
+    instanceId: item.instanceId,
+    label: item.label,
+    host: item.host,
+    port: item.port,
+    permissions: item.permissions,
+    extensionVersion: item.extensionVersion,
+    nativeVersion: item.version,
+    pid: item.pid,
+    updatedAt: item.updatedAt
+  };
+}
+
+function resolveInstance(selector) {
+  const items = loadInstances();
+  if (!selector) {
+    if (items.length === 1) return items[0];
+    fail('Multiple/no browser instances available. Use --instance <label-or-id>.');
+  }
+  const exact = items.filter((i) => i.instanceId === selector || i.label === selector);
+  if (exact.length === 1) return exact[0];
+  const prefix = items.filter((i) => String(i.instanceId).startsWith(selector));
+  if (prefix.length === 1) return prefix[0];
+  fail(`Instance not uniquely found: ${selector}`);
+}
+
+async function api(instance, method, route, body) {
+  const headers = { authorization: `Bearer ${instance.token}`, 'content-type': 'application/json' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    return fs.readdirSync(INSTANCE_DIR).filter((n) => n.endsWith('.json')).map((n) => readJson(path.join(INSTANCE_DIR, n), null)).filter(Boolean);
-  } catch (_) { return []; }
-}
-
-function pickInstance(ref) {
-  const all = instances();
-  if (!ref && all.length === 1) return all[0];
-  const key = String(ref || '').toLowerCase();
-  const exact = all.find((x) => String(x.instanceId).toLowerCase() === key || String(x.label).toLowerCase() === key);
-  if (exact) return exact;
-  const partial = all.filter((x) => String(x.instanceId).toLowerCase().startsWith(key) || String(x.label).toLowerCase().includes(key));
-  if (partial.length === 1) return partial[0];
-  throw new Error(ref ? `Instance not uniquely found: ${ref}` : `Specify --instance; active instances=${all.length}`);
-}
-function request(instance, method, route, body) {
-  return new Promise((resolve, reject) => {
-    const payload = body == null ? null : Buffer.from(JSON.stringify(body), 'utf8');
-    const req = http.request({
-      host:'127.0.0.1', port:instance.port, path:route, method,
-      headers:{ authorization:`Bearer ${instance.token}`, ...(payload ? {'content-type':'application/json','content-length':payload.length} : {}) }
-    }, (res) => {
-      const chunks = [];
-      res.on('data', (d) => chunks.push(d));
-      res.on('end', () => {
-        const text = Buffer.concat(chunks).toString('utf8');
-        let parsed; try { parsed = JSON.parse(text || '{}'); } catch (_) { parsed = { ok:false, error:text }; }
-        if (res.statusCode >= 400) reject(new Error(parsed.error || `HTTP ${res.statusCode}`)); else resolve(parsed);
-      });
+    const res = await fetch(`http://127.0.0.1:${instance.port}${route}`, {
+      method, headers, signal: controller.signal,
+      body: body === undefined ? undefined : JSON.stringify(body)
     });
-    req.on('error', reject);
-    if (payload) req.write(payload);
-    req.end();
+    const text = await res.text();
+    let json;
+    try { json = text ? JSON.parse(text) : {}; } catch (_) { json = { ok: false, raw: text }; }
+    return { status: res.status, body: json };
+  } finally { clearTimeout(timer); }
+}
+
+function print(value) {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function commandList() {
+  const results = [];
+  for (const item of loadInstances()) {
+    let healthy = false;
+    try {
+      const r = await api(item, 'GET', '/v1/info');
+      healthy = r.status === 200 && r.body?.ok === true;
+    } catch (_) {}
+    results.push({ ...publicInstance(item), healthy });
+  }
+  print(results);
+}
+
+async function commandDoctor() {
+  const items = loadInstances();
+  const report = { ok: true, version: VERSION, home: HOME, instances: [], profiles: Object.keys(readJson(PROFILE_FILE, {})) };
+  for (const item of items) {
+    try {
+      const r = await api(item, 'GET', '/v1/info');
+      report.instances.push({ ...publicInstance(item), healthy: r.status === 200 && r.body?.ok === true });
+      if (r.status !== 200) report.ok = false;
+    } catch (error) {
+      report.ok = false;
+      report.instances.push({ ...publicInstance(item), healthy: false, error: String(error?.message || error) });
+    }
+  }
+  if (!items.length) report.ok = false;
+  print(report);
+  if (!report.ok) process.exitCode = 2;
+}
+
+async function commandExec(args) {
+  const instance = resolveInstance(args.instance);
+  if (!args.json) fail('exec requires --json <command-json>.');
+  let command;
+  try { command = JSON.parse(args.json); }
+  catch (error) { fail(`Invalid --json: ${error.message}`); }
+  const result = await api(instance, 'POST', '/v1/command', { command });
+  print(result.body);
+  if (result.status >= 400 || result.body?.ok === false) process.exitCode = 3;
+}
+
+async function commandSsh(args) {
+  const instance = resolveInstance(args.instance);
+  if (!args.profile || !args.command) fail('ssh requires --profile <name> --command <remote-command>.');
+  const command = {
+    target: 'ssh', action: 'ssh.exec', profile: args.profile,
+    command: args.command, timeoutMs: Number(args.timeout || 30000)
+  };
+  const result = await api(instance, 'POST', '/v1/command', { command });
+  print(result.body);
+  if (result.status >= 400 || result.body?.ok === false) process.exitCode = 3;
+}
+
+function profileList() {
+  print(readJson(PROFILE_FILE, {}));
+}
+
+function profileSet(args) {
+  const name = String(args.name || '').trim();
+  if (!name || !args.host || !args.user) fail('profile set requires --name --host --user.');
+  const profiles = readJson(PROFILE_FILE, {});
+  profiles[name] = sanitizeProfile({
+    host: args.host,
+    port: Number(args.port || 22),
+    username: args.user,
+    authMethod: args.auth || (args.key ? 'keyfile' : 'agent'),
+    keyPath: args.key || ''
   });
+  writeJsonAtomic(PROFILE_FILE, profiles);
+  print({ ok: true, name, profile: profiles[name] });
 }
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(name);
-  return i >= 0 && process.argv[i + 1] != null ? process.argv[i + 1] : fallback;
+function profileDelete(args) {
+  const name = String(args.name || '').trim();
+  if (!name) fail('profile delete requires --name <profile>.');
+  const profiles = readJson(PROFILE_FILE, {});
+  const existed = Object.prototype.hasOwnProperty.call(profiles, name);
+  delete profiles[name];
+  writeJsonAtomic(PROFILE_FILE, profiles);
+  print({ ok: true, name, existed });
 }
 
-function saveProfiles(value) {
-  fs.mkdirSync(HOME, { recursive:true });
-  fs.writeFileSync(PROFILE_FILE, `${JSON.stringify(value, null, 2)}\n`, { encoding:'utf8', mode:0o600 });
+function usage() {
+  console.log(`986Code CLI ${VERSION}\n\nCommands:\n  list\n  doctor\n  exec --instance <label|id> --json <json>\n  ssh --instance <label|id> --profile <name> --command <cmd> [--timeout 30000]\n  profile list\n  profile set --name <name> --host <host> --user <user> [--port 22] [--auth agent|keyfile] [--key <path>]\n  profile delete --name <name>`);
 }
 
-function sanitizeProfile(p = {}) {
-  const authMethod = ['agent','keyfile'].includes(p.authMethod) ? p.authMethod : 'agent';
-  return { host:String(p.host || '').trim(), port:Number(p.port || 22), username:String(p.username || '').trim(), authMethod, keyPath:authMethod === 'keyfile' ? String(p.keyPath || '').trim() : '' };
-}
-async function main() {
-  const command = String(process.argv[2] || 'help').toLowerCase();
-  if (command === 'list') {
-    const rows = instances().map(({token, ...x}) => x);
-    console.log(JSON.stringify(rows, null, 2));
-    return;
-  }
-  if (command === 'doctor') {
-    const all = instances();
-    const results = [];
-    for (const item of all) {
-      try { results.push(await request(item, 'GET', '/v1/info')); }
-      catch (error) { results.push({ ok:false, instanceId:item.instanceId, label:item.label, error:error.message }); }
-    }
-    console.log(JSON.stringify({ ok:results.every((r) => r.ok), instances:results }, null, 2));
-    return;
-  }
-  if (command === 'exec') {
-    const item = pickInstance(arg('--instance'));
-    const raw = arg('--json');
-    if (!raw) throw new Error('exec requires --json <command-json>');
-    const result = await request(item, 'POST', '/v1/command', { command:JSON.parse(raw) });
-    console.log(JSON.stringify(result, null, 2));
-    if (result.ok === false) process.exitCode = 2;
-    return;
-  }
-  if (command === 'ssh') {
-    const item = pickInstance(arg('--instance'));
-    const profile = arg('--profile');
-    const remoteCommand = arg('--command');
-    if (!profile || !remoteCommand) throw new Error('ssh requires --profile and --command');
-    const result = await request(item, 'POST', '/v1/command', { command:{ target:'ssh', action:'ssh.exec', profile, command:remoteCommand } });
-    console.log(JSON.stringify(result, null, 2));
-    if (result.ok === false) process.exitCode = 2;
-    return;
-  }
-  if (command === 'profile') {
-    const sub = String(process.argv[3] || 'list').toLowerCase();
-    const profiles = readJson(PROFILE_FILE, {});
-    if (sub === 'list') { console.log(JSON.stringify(profiles, null, 2)); return; }
-    if (sub === 'delete') {
-      const name = arg('--name'); if (!name) throw new Error('profile delete requires --name');
-      delete profiles[name]; saveProfiles(profiles); console.log(JSON.stringify({ok:true,name}, null, 2)); return;
-    }
-    if (sub === 'set') {
-      const name = arg('--name'); const host = arg('--host'); const username = arg('--user');
-      if (!name || !host || !username) throw new Error('profile set requires --name --host --user');
-      profiles[name] = sanitizeProfile({ host, username, port:Number(arg('--port','22')), authMethod:arg('--auth','agent'), keyPath:arg('--key','') });
-      saveProfiles(profiles); console.log(JSON.stringify({ok:true,name,profile:profiles[name]}, null, 2)); return;
-    }
-    throw new Error(`Unknown profile subcommand: ${sub}`);
-  }
-  console.log(`986Code CLI\n\nCommands:\n  list\n  doctor\n  exec --instance <label|id> --json <command-json>\n  ssh --instance <label|id> --profile <name> --command <remote-command>\n  profile list\n  profile set --name <name> --host <host> --user <user> [--port 22] [--auth agent|keyfile] [--key path]\n  profile delete --name <name>`);
-}
-
-main().catch((error) => { console.error(`986Code CLI error: ${error.message}`); process.exitCode = 1; });
+(async () => {
+  const args = parseArgs(process.argv.slice(2));
+  const [cmd, sub] = args._;
+  if (!cmd || cmd === 'help' || args.help) return usage();
+  if (cmd === 'list') return commandList();
+  if (cmd === 'doctor') return commandDoctor();
+  if (cmd === 'exec') return commandExec(args);
+  if (cmd === 'ssh') return commandSsh(args);
+  if (cmd === 'profile' && sub === 'list') return profileList();
+  if (cmd === 'profile' && sub === 'set') return profileSet(args);
+  if (cmd === 'profile' && sub === 'delete') return profileDelete(args);
+  fail(`Unknown command: ${args._.join(' ')}`);
+})().catch((error) => fail(error.stack || String(error)));
