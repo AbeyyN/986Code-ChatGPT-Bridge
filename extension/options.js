@@ -22,7 +22,8 @@ async function has(permission) {
 async function updatePermButtons() {
   const dbg = await has('debugger');
   const nat = await has('nativeMessaging');
-  $('debuggerBtn').textContent = dbg ? 'Disable' : 'Enable';
+  $('debuggerBtn').textContent = dbg ? 'Enabled' : 'Unavailable';
+  $('debuggerBtn').disabled = true;
   $('nativeBtn').textContent = nat ? 'Disable' : 'Enable';
   $('debuggerBtn').dataset.enabled = String(dbg);
   $('nativeBtn').dataset.enabled = String(nat);
@@ -102,7 +103,6 @@ async function saveTiers() {
   alert('Permission tiers saved.');
 }
 
-$('debuggerBtn').addEventListener('click', () => togglePermission('debugger'));
 $('nativeBtn').addEventListener('click', () => togglePermission('nativeMessaging'));
 $('saveIdentity').addEventListener('click', saveInstance);
 $('saveTiers').addEventListener('click', saveTiers);

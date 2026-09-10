@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "986Code Bridge for ChatGPT",
   "short_name": "986Code Bridge",
-  "version": "0.1.0.4",
-  "version_name": "0.1.0-alpha.4",
+  "version": "0.1.0.5",
+  "version_name": "0.1.0-alpha.5",
   "description": "User-controlled browser automation bridge with a secure local native control plane, multi-profile isolation, permission tiers, and optional SSH/CDP power tools.",
   "icons": {
     "16": "icons/icon16.png",
@@ -27,14 +27,14 @@
     "activeTab",
     "scripting",
     "storage",
-    "tabs"
+    "tabs",
+    "debugger"
   ],
   "host_permissions": [
     "http://*/*",
     "https://*/*"
   ],
   "optional_permissions": [
-    "debugger",
     "nativeMessaging"
   ]
 }
