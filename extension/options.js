@@ -13,7 +13,8 @@ async function has(permission) { return chrome.permissions.contains({ permission
 async function updatePermButtons() {
   const dbg = await has('debugger');
   const nat = await has('nativeMessaging');
-  $('debuggerBtn').textContent = dbg ? 'Disable' : 'Enable';
+  $('debuggerBtn').textContent = dbg ? 'Enabled' : 'Unavailable';
+  $('debuggerBtn').disabled = true;
   $('nativeBtn').textContent = nat ? 'Disable' : 'Enable';
   $('debuggerBtn').dataset.enabled = String(dbg);
   $('nativeBtn').dataset.enabled = String(nat);
@@ -44,7 +45,6 @@ async function loadProfiles() {
   }));
 }
 
-$('debuggerBtn').addEventListener('click', () => togglePermission('debugger', $('debuggerBtn')));
 $('nativeBtn').addEventListener('click', () => togglePermission('nativeMessaging', $('nativeBtn')));
 $('saveProfile').addEventListener('click', async () => {
   const name = $('profileName').value.trim();

@@ -11,6 +11,14 @@ The project uses semantic versioning while the command API is still in alpha.
 - Automated browser integration tests.
 - Stronger command provenance and operation IDs.
 
+## [0.1.0-alpha.4] - 2026-09-10
+
+### Fixed
+- Chromium/Edge manifest error caused by declaring `debugger` in `optional_permissions`.
+- CDP Power Mode now receives the required `debugger` permission at install/reload time.
+- Power Mode settings no longer present the required debugger permission as user-toggleable.
+- Added regression checks preventing `debugger` from returning to `optional_permissions`.
+
 ## [0.1.0-alpha.3] - 2026-09-09
 
 ### Added

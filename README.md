@@ -2,7 +2,7 @@
 
 A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy**.
 
-**Current release:** `v0.1.0-alpha.3`
+**Current release:** `v0.1.0-alpha.4`
 **Status:** Alpha / working browser bridge; native companion remains optional and incomplete.
 
 986Code lets a user pass structured commands to a browser extension to inspect pages, manage tabs, click, type, tick controls, scroll, read values, and optionally use Chromium DevTools Protocol or a future native/SSH companion.
@@ -18,7 +18,7 @@ A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy*
 - **No hardcoded credentials** — no user password, private key, API token, session cookie, or personal host is embedded in source.
 - **Native-owned secrets** — SSH passwords, passphrases, private-key material and tokens belong in the OS/native credential layer, not extension storage.
 - **Redacted local audit history** — local history keeps operation metadata while typed values, SSH commands, credential fields and URL query/hash data are redacted.
-- **Optional elevated modes** — `debugger` and `nativeMessaging` are optional permissions.
+- **Explicit elevated modes** — Chromium/Edge requires `debugger` as a declared required permission for CDP Power Mode; `nativeMessaging` remains optional.
 
 ## Verified in v0.1.0-alpha.2
 
@@ -92,7 +92,7 @@ The Native Messaging integration point is present, but the native companion is *
 | `scripting` | Inject the page bridge into approved HTTP/HTTPS pages |
 | `storage` | Settings, SSH profile metadata and local command history |
 | HTTP/HTTPS hosts | Permit explicit automation of already-open web tabs |
-| `debugger` (optional) | CDP Power Mode |
+| `debugger` | CDP Power Mode; required because Chromium/Edge rejects it in `optional_permissions` |
 | `nativeMessaging` (optional) | Local native/SSH companion |
 
 ## Security notes
