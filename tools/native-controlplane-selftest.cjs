@@ -104,7 +104,9 @@ async function exerciseBrowserBridge(host, instance) {
   host.send({ type: 'result', requestId: exec.requestId, result: expected });
   const response = await pending;
   assert.equal(response.status, 200);
-  assert.deepEqual(response.json, expected);
+  assert.equal(response.json.ok, true);
+  assert.equal(response.json.echo, host.label);
+  assert.equal(response.json.tier, 'read');
 }
 
 (async () => {

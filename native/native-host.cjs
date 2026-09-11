@@ -5,9 +5,9 @@ const path = require('node:path');
 const os = require('node:os');
 const http = require('node:http');
 const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
-const VERSION = '0.1.0-alpha.4';
+const VERSION = '0.1.0-alpha.5';
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
 const HOME = process.env['986CODE_HOME'] || path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');
 const INSTANCE_DIR = path.join(HOME, 'instances');
@@ -164,6 +164,33 @@ function waitForExtension(command, timeoutMs = 30000) {
   });
 }
 
+let sshExecutableCache = null;
+
+function findSshExecutable() {
+  if (sshExecutableCache) return sshExecutableCache;
+  const programFiles = process.env.ProgramW6432 || process.env.ProgramFiles || '';
+  const candidates = [
+    process.env['986CODE_SSH'],
+    programFiles ? path.join(programFiles, 'Git', 'usr', 'bin', 'ssh.exe') : null,
+    process.env.WINDIR ? path.join(process.env.WINDIR, 'System32', 'OpenSSH', 'ssh.exe') : null,
+    'ssh.exe'
+  ].filter(Boolean);
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const key = String(candidate).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
+      const probe = spawnSync(candidate, ['-V'], { windowsHide: true, encoding: 'utf8', timeout: 3000 });
+      if (!probe.error && probe.status === 0) {
+        sshExecutableCache = candidate;
+        return candidate;
+      }
+    } catch (_) {}
+  }
+  throw new Error('No working OpenSSH client found. Install Windows OpenSSH Client or Git for Windows.');
+}
+
 function runProcess(file, args, timeoutMs = 30000) {
   return new Promise((resolve) => {
     const child = spawn(file, args, { windowsHide: true, shell: false });
@@ -216,7 +243,8 @@ async function executeSsh(command = {}) {
   }
   args.push(`${p.username}@${p.host}`, '--', remoteCommand);
   const timeoutMs = Math.max(1000, Math.min(120000, Number(command.timeoutMs || 30000)));
-  return { ...(await runProcess('ssh.exe', args, timeoutMs)), profile: String(command.profile) };
+  const sshExe = findSshExecutable();
+  return { ...(await runProcess(sshExe, args, timeoutMs)), profile: String(command.profile), sshClient: path.basename(sshExe) };
 }
 
 async function handleHttp(req, res) {

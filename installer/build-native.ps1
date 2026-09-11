@@ -5,8 +5,8 @@ $ErrorActionPreference = 'Stop'
 $Repo = Split-Path -Parent $PSScriptRoot
 if (-not $OutputDir) { $OutputDir = Join-Path $Repo 'dist\native' }
 $Node = (Get-Command node.exe -ErrorAction Stop).Source
-$Npx = Join-Path (Split-Path $Node) 'npx.cmd'
-if (-not (Test-Path $Npx)) { throw "npx.cmd not found beside Node: $Npx" }
+$Npx = (Get-Command npx.cmd -ErrorAction Stop).Source
+$Npm = (Get-Command npm.cmd -ErrorAction Stop).Source
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 function Build-Sea([string]$Source, [string]$Name) {
@@ -28,6 +28,12 @@ function Build-Sea([string]$Source, [string]$Name) {
     } finally { Pop-Location }
   } finally { Remove-Item $Work -Recurse -Force -ErrorAction SilentlyContinue }
 }
+Push-Location $Repo
+try {
+  & $Npm run build:mcp
+  if ($LASTEXITCODE -ne 0) { throw 'MCP bundle build failed.' }
+} finally { Pop-Location }
 
 Build-Sea (Join-Path $Repo 'native\native-host.cjs') '986code-native-host.exe'
 Build-Sea (Join-Path $Repo 'native\cli.cjs') '986code.exe'
+Build-Sea (Join-Path $Repo 'dist\mcp\986code-mcp.bundle.cjs') '986code-mcp.exe'

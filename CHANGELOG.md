@@ -7,9 +7,34 @@ The project uses semantic versioning while the command API is still in alpha.
 ## [Unreleased]
 
 ### Planned
-- Native companion hardening and packaging.
-- Automated browser integration tests.
+- First-run onboarding, automatic instance labelling, and clearer connection health UX.
 - Stronger command provenance and operation IDs.
+- Broader automated Chrome / Edge / Opera compatibility coverage.
+
+## [0.1.0-alpha.5] - 2026-09-10
+
+### Added
+- Authenticated per-instance control plane bound exclusively to `127.0.0.1`.
+- Per-profile UUID/label isolation with READ, WRITE and POWER permission tiers.
+- Standalone Windows native host and `986code` CLI.
+- Local stdio MCP adapter with explicit instance selection for every browser/SSH operation.
+- Standalone `986code-mcp.exe` and `986CodeBridge-Setup.exe` packaging.
+- Native SSH profile execution using SSH Agent or key-file references without storing passwords.
+
+### Security
+- Removed URL-query command payload execution from the extension command page.
+- Bearer tokens are generated per native-host instance and are not stored in extension storage.
+- Native host independently enforces POWER for SSH.
+- Installer registers only the explicitly supplied unpacked extension ID; no maintainer session or credential is bundled.
+- Native SSH discovers and validates a working OpenSSH client instead of blindly trusting a broken PATH entry.
+
+### Verified
+- CLI -> Native Host -> Opera -> real webpage mutation/readback.
+- Simultaneous PERSONAL-OPERA / WORK-OPERA operation and cross-profile tab isolation.
+- POWER-denied behavior when the elevated tier is disabled.
+- MCP source and standalone binary protocol tests plus live MCP-to-browser E2E.
+- Rebuilt native-host executable -> isolated key-authenticated SSH server E2E.
+- Standalone installer uninstall/reinstall round trip with production-only Native Messaging origin.
 
 ## [0.1.0-alpha.4] - 2026-09-10
 

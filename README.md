@@ -2,10 +2,10 @@
 
 A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy**.
 
-**Current release:** `v0.1.0-alpha.4`
-**Status:** Alpha / working browser bridge; native companion remains optional and incomplete.
+**Current release:** `v0.1.0-alpha.5`
+**Status:** Alpha / development-ready browser bridge with a Windows native control plane, CLI, MCP adapter, and installer.
 
-986Code lets a user pass structured commands to a browser extension to inspect pages, manage tabs, click, type, tick controls, scroll, read values, and optionally use Chromium DevTools Protocol or a future native/SSH companion.
+986Code lets a user pass structured commands to a Chromium extension to inspect pages, manage tabs, click, type, tick controls, scroll, read values, use optional CDP power tools, and route local automation through an authenticated Windows native control plane.
 
 > This is a third-party project. It is not affiliated with, endorsed by, or maintained by OpenAI, Opera Software, Anthropic, or Google.
 
@@ -20,7 +20,7 @@ A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy*
 - **Redacted local audit history** — local history keeps operation metadata while typed values, SSH commands, credential fields and URL query/hash data are redacted.
 - **Explicit elevated modes** — Chromium/Edge requires `debugger` as a declared required permission for CDP Power Mode; `nativeMessaging` remains optional.
 
-## Verified in v0.1.0-alpha.2
+## Verified capabilities
 
 | Capability | Status |
 |---|---|
@@ -34,8 +34,14 @@ A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy*
 | End-to-end click callback | PASS |
 | Read-back after mutation | PASS |
 | Unsafe remembered-tab fallback | BLOCKED by default |
+| Authenticated 127.0.0.1 native control plane | PASS |
+| PERSONAL / WORK multi-profile isolation | PASS |
+| READ / WRITE / POWER tier enforcement | PASS |
+| Standalone CLI and MCP adapter | PASS |
+| Native SSH via working OpenSSH discovery | PASS |
+| Installer install/uninstall round trip | PASS |
 
-The release validation used an isolated localhost fixture. The final read-back returned `DONE:986Code-alpha2-E2E:true` and the test server received the corresponding callback.
+Browser validation uses isolated localhost fixtures. Alpha.5 additionally passed live PERSONAL/WORK profile isolation, MCP-to-browser mutation/readback, native-binary SSH execution, and a clean installer uninstall/reinstall round trip.
 ## Installation (unpacked extension)
 
 1. Clone or download this repository.
@@ -46,6 +52,23 @@ The release validation used an isolated localhost fixture. The final read-back r
 6. Pin **986Code Bridge** if you want quick access to its popup.
 
 The extension requests HTTP/HTTPS host access because remote commands may target an already-open web tab without a direct user click on that tab. File URL access remains controlled by the browser's extension settings.
+
+### Windows native control plane
+
+Build the binaries and installer with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build-native.ps1
+powershell -ExecutionPolicy Bypass -File installer\build-setup.ps1
+```
+
+For an unpacked extension, install with its actual Chromium extension ID:
+
+```powershell
+.\dist\installer\986CodeBridge-Setup.exe --extension-id <32-character-extension-id>
+```
+
+The installer is per-user, registers the Native Messaging host for Chrome, Edge and Opera, installs `986code.exe` and `986code-mcp.exe`, and binds the control plane only to `127.0.0.1`.
 
 ## Safe targeting model
 
@@ -79,9 +102,10 @@ Batch commands are executed sequentially and stop on the first failure by defaul
 - `page` / `web` — DOM-level automation through `bridge-content.js`.
 - `browser` / `tab` — tab listing, creation, activation, closing, navigation, reload, screenshot.
 - `cdp` / `power` — optional coordinate-level input through the Chromium debugger permission.
-- `native` / `ssh` / `terminal` — optional Native Messaging path for a local companion.
+- `native` / `ssh` / `terminal` — Native Messaging path to the Windows control-plane companion.
+- `mcp` — local stdio MCP adapter exposing explicit per-instance browser tools and SSH.
 
-The Native Messaging integration point is present, but the native companion is **not bundled as a finished component in this release**. Do not treat SSH/native mode as production-ready yet.
+Alpha.5 bundles the Windows native host, CLI and MCP adapter through `986CodeBridge-Setup.exe`. Native SSH requires a working OpenSSH client; 986Code validates candidates and can use Git for Windows OpenSSH when the Windows client is broken or unavailable.
 
 ## Permissions
 
@@ -90,7 +114,7 @@ The Native Messaging integration point is present, but the native companion is *
 | `activeTab` | Read the browser's active tab when a local popup action is used |
 | `tabs` | List, activate, navigate, reload, create and close tabs |
 | `scripting` | Inject the page bridge into approved HTTP/HTTPS pages |
-| `storage` | Settings, SSH profile metadata and local command history |
+| `storage` | Instance identity, permission settings and redacted local audit metadata |
 | HTTP/HTTPS hosts | Permit explicit automation of already-open web tabs |
 | `debugger` | CDP Power Mode; required because Chromium/Edge rejects it in `optional_permissions` |
 | `nativeMessaging` (optional) | Local native/SSH companion |
@@ -109,7 +133,11 @@ See [SECURITY.md](SECURITY.md) for reporting and operational guidance, [PRIVACY.
 
 ```text
 extension/                 Browser extension source
-.github/workflows/ci.yml   Source validation only; no build artifacts
+native/                    Windows native host + CLI source
+mcp/                       Local stdio MCP adapter
+installer/                 Windows SEA build/install tooling
+tools/                     Security/native/MCP self-tests
+.github/workflows/ci.yml   Source validation and build smoke tests; no uploaded artifacts
 CHANGELOG.md               Version history
 CONTRIBUTING.md            Contribution workflow
 docs/COMMAND_REFERENCE.md  Command and targeting reference
@@ -121,7 +149,15 @@ SECURITY.md                Security policy
 GitHub is used for **source, versioning, CI and releases**. Compiled/binary build history should not be stored in this repository.
 ## Development and validation
 
-The extension has no runtime npm dependency. Basic source validation can be performed with:
+Install development dependencies and run the portable validation suite with:
+
+```powershell
+npm ci
+npm test
+npm run build:mcp
+```
+
+Extension-only syntax validation can also be performed with:
 
 ```powershell
 node --check extension\background.js
@@ -135,12 +171,12 @@ The CI workflow also parses `manifest.json` and checks all JavaScript files for 
 
 ## Roadmap
 
-- Harden tab-selection UX and command provenance.
-- Add structured operation IDs and clearer audit events.
-- Build and independently version the native companion.
-- Add authenticated native IPC and stricter SSH profile validation.
-- Add automated browser integration tests.
-- Package browser-store-ready releases after the alpha API stabilizes.
+- Add first-run onboarding and automatic browser/profile labelling.
+- Add structured operation IDs and clearer command provenance.
+- Improve permission approval and health-status UX.
+- Add MCP configuration helpers for supported local MCP clients.
+- Expand Chrome / Edge / Opera compatibility automation.
+- Add code signing and browser-store-ready packaging after the alpha API stabilizes.
 
 ## License
 

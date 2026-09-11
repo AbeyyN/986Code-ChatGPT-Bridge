@@ -2,7 +2,7 @@
   if (window.__986CodeBridgeInstalled) return;
   window.__986CodeBridgeInstalled = true;
 
-  const BRIDGE_VERSION = '0.1.0-alpha.1';
+  const BRIDGE_VERSION = '0.1.0-alpha.5';
   const normalize = (v) => String(v ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

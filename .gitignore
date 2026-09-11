@@ -22,3 +22,7 @@ dist/
 # Logs/temp
 *.log
 *.tmp
+
+# Node build tooling
+node_modules/
+coverage/

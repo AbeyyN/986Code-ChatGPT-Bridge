@@ -3,7 +3,8 @@ $ErrorActionPreference = 'Stop'
 $Root = Join-Path $env:LOCALAPPDATA '986Code\Bridge'
 $Keys = @(
   'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.abeyytechxy.986code_bridge',
-  'HKCU:\Software\Opera Software\NativeMessagingHosts\com.abeyytechxy.986code_bridge'
+  'HKCU:\Software\Opera Software\NativeMessagingHosts\com.abeyytechxy.986code_bridge',
+  'HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.abeyytechxy.986code_bridge'
 )
 foreach ($Key in $Keys) {
   Remove-Item $Key -Recurse -Force -ErrorAction SilentlyContinue

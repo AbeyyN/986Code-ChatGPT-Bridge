@@ -13,10 +13,10 @@ const chrome = {
   },
   tabs: { onActivated: noopEvent, onUpdated: noopEvent },
   runtime: { onInstalled: noopEvent, onStartup: noopEvent, onMessage: noopEvent, id: 'selftest' },
-  permissions: { contains: async () => false, getAll: async () => ({}) }
+  permissions: { contains: async () => false, getAll: async () => ({}), onAdded: noopEvent, onRemoved: noopEvent }
 };
 
-const context = { chrome, console, URL, setTimeout, clearTimeout };
+const context = { chrome, console, URL, setTimeout, clearTimeout, crypto: globalThis.crypto };
 vm.createContext(context);
 vm.runInContext(`${bg}\nglobalThis.__security={hasInlineCredential,redactForAudit,sanitizeSshProfile};`, context);
 const sec = context.__security;const credentialSample = { target:'ssh', action:'ssh.exec', password:'demo-only' };
@@ -33,7 +33,7 @@ if (redacted.url !== 'https://example.com/path') throw new Error('URL query/hash
 const profile = sec.sanitizeSshProfile({ host:'server.test', port:22, username:'user', password:'demo', keyPath:'C:/key', authMethod:'keyfile' });
 if ('password' in profile) throw new Error('SSH profile sanitizer retained a secret field');
 if (profile.authMethod !== 'keyfile') throw new Error('SSH auth method sanitizer failed');if (/type=["']password["']/i.test(opt)) throw new Error('Password input must not exist in extension UI');
-if (manifest.version_name !== '0.1.0-alpha.4') throw new Error('Unexpected manifest version');
+if (manifest.version_name !== '0.1.0-alpha.5') throw new Error('Unexpected manifest version');
 if (!manifest.permissions.includes('debugger')) throw new Error('Debugger permission must be required for Chromium/Edge');
 if ((manifest.optional_permissions || []).includes('debugger')) throw new Error('Debugger permission must not be optional');
 

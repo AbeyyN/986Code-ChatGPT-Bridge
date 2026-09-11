@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -22,6 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
+      - name: Install build dependencies
+        run: npm ci
 
       - name: Validate JavaScript syntax
         run: |
@@ -30,17 +34,60 @@ jobs:
           node --check extension/command.js
           node --check extension/options.js
           node --check extension/popup.js
+          node --check native/native-host.cjs
+          node --check native/cli.cjs
+          node --check installer/setup.cjs
+          node --check mcp/server.mjs
+          node --check tools/mcp-selftest.mjs
+          node --check tools/mcp-binary-selftest.mjs
+          node --check tools/mcp-live-e2e.mjs
+
       - name: Validate manifest JSON
         run: python -m json.tool extension/manifest.json > /dev/null
 
-      - name: Security architecture self-test
-        run: node tools/security-selftest.mjs
+      - name: Run portable self-tests
+        run: npm test
+
+      - name: Bundle MCP adapter
+        run: npm run build:mcp
 
       - name: Check forbidden secret-like files
         shell: bash
         run: |
-          test -z "$(find . -type f \( -name '*.pem' -o -name '*.key' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '.env' -o -name '.env.*' \) -not -path './.git/*' -print -quit)"
+          test -z "$(find . -type f \( -name '*.pem' -o -name '*.key' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '.env' -o -name '.env.*' \) -not -path './.git/*' -not -path './node_modules/*' -print -quit)"
 
       - name: Git whitespace check
         run: git diff --check HEAD^
         if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+
+  windows-package-smoke:
+    runs-on: windows-latest
+    needs: validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install build dependencies
+        run: npm ci
+
+      - name: Build native binaries
+        shell: powershell
+        run: .\installer\build-native.ps1
+
+      - name: Verify standalone MCP binary
+        run: npm run test:mcp-binary
+
+      - name: Build standalone installer
+        shell: powershell
+        run: .\installer\build-setup.ps1
+
+      - name: Verify package outputs
+        shell: powershell
+        run: |
+          @('dist/native/986code-native-host.exe','dist/native/986code.exe','dist/native/986code-mcp.exe','dist/installer/986CodeBridge-Setup.exe') | ForEach-Object { if (!(Test-Path $_)) { throw "Missing $_" } }
