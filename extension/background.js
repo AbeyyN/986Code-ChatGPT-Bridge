@@ -1,5 +1,5 @@
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
-const VERSION = '0.1.0-alpha.5';
+const VERSION = '0.1.0-alpha.6-dev';
 
 const CREDENTIAL_FIELD_RE = /(^|[_-])(password|passphrase|secret|token|cookie|session|api.?key|private.?key|authorization|bearer)([_-]|$)/i;
 const AUDIT_REDACT_FIELDS = new Set(['value','text','profiledata','body','payload']);
@@ -11,6 +11,14 @@ let nativeStatus = { connected:false, error:null, controlPlane:null, nativeVersi
 let nativeReconnectTimer = null;
 const nativePending = new Map();
 
+function browserFamily() {
+  const ua=globalThis.navigator?.userAgent || '';
+  if (/OPR\//i.test(ua)) return 'OPERA';
+  if (/Edg\//i.test(ua)) return 'EDGE';
+  if (/Chrome\//i.test(ua)) return 'CHROME';
+  return 'CHROMIUM';
+}
+
 function uuid() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
 }
@@ -19,7 +27,7 @@ async function ensureInstanceIdentity() {
   const current = await chrome.storage.local.get({ instanceId:null, instanceLabel:null, permissionTiers:TIER_DEFAULTS });
   let changed = false;
   if (!current.instanceId) { current.instanceId = uuid(); changed = true; }
-  if (!current.instanceLabel) { current.instanceLabel = `OPERA-${String(current.instanceId).slice(0,8).toUpperCase()}`; changed = true; }
+  if (!current.instanceLabel) { current.instanceLabel = `${browserFamily()}-${String(current.instanceId).slice(0,8).toUpperCase()}`; changed = true; }
   current.permissionTiers = { ...TIER_DEFAULTS, ...(current.permissionTiers || {}) };
   if (changed) await chrome.storage.local.set({ instanceId:current.instanceId, instanceLabel:current.instanceLabel, permissionTiers:current.permissionTiers });
   return current;
@@ -174,6 +182,15 @@ async function nativeRequest(action, payload = {}, timeoutMs = 30000) {
     nativePending.set(requestId, { resolve, reject, timer });
     nativePort.postMessage({ type:'native.request', requestId, action, ...payload });
   });
+}
+
+async function healthSnapshot() {
+  const permissions=await chrome.permissions.getAll(); const state=await ensureInstanceIdentity();
+  const nativePermission=(permissions.permissions||[]).includes('nativeMessaging'); let nativeInfo=null,nativeError=nativeStatus.error||null,latencyMs=null;
+  if(nativePermission){const started=performance.now();try{nativeInfo=await nativeRequest('native.info',{},5000);latencyMs=Math.round(performance.now()-started);nativeError=null;}catch(error){nativeError=errText(error);}}
+  const cp=nativeInfo?.controlPlane||nativeStatus.controlPlane||null, loopback=cp?.host==='127.0.0.1', parity=nativeInfo?.version?nativeInfo.version===VERSION:null, tiers={...TIER_DEFAULTS,...(state.permissionTiers||{})};
+  const checks=[['extension','Browser Extension','ready',VERSION],['nativePermission','Native Messaging',nativePermission?'ready':'warn',nativePermission?'Enabled':'Disabled'],['nativeHost','Native Host',nativeInfo?.ok?'ready':'warn',nativeInfo?.version||nativeError||'Not connected'],['controlPlane','Control Plane',loopback?'ready':(cp?'error':'warn'),cp?`${cp.host}:${cp.port}`:'Not connected'],['mcp','MCP Binary',nativeInfo?.mcpAvailable?'ready':'warn',nativeInfo?.mcpAvailable?'Available':'Not detected'],['ssh','SSH Client',nativeInfo?.sshClient?'ready':'warn',nativeInfo?.sshClient||'Not detected'],['policy','Permission Policy',tiers.power?'warn':'ready',`READ ${tiers.read?"ON":"OFF"} · WRITE ${tiers.write?"ON":"OFF"} · POWER ${tiers.power?"ON":"OFF"}`],['parity','Version Parity',parity===true?'ready':(parity===false?'error':'warn'),nativeInfo?.version?`${VERSION} / ${nativeInfo.version}`:'Native version unavailable']].map(([id,label,status,detail])=>({id,label,status,detail}));
+  return {ok:true,version:VERSION,browser:browserFamily(),instanceId:state.instanceId,instanceLabel:state.instanceLabel,permissionTiers:tiers,nativePermission,nativeStatus:{...nativeStatus,error:nativeError},nativeInfo,latencyMs,checks};
 }
 
 async function migrateSshProfilesToNative() {
@@ -392,20 +409,17 @@ chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   await migratePrivacyStorage();
   const state = await ensureInstanceIdentity();
-  await chrome.storage.local.set({
-    installedVersion: VERSION,
-    historyEnabled: true,
-    historyLimit: 100,
-    historyMode: 'metadata-redacted',
-    identityMode: 'user-session',
-    credentialPolicy: 'native-owned',
-    permissionTiers:state.permissionTiers,
-    requireConfirmation: true
-  });
+  const existing = await chrome.storage.local.get({ historyEnabled:null, historyLimit:null, requireConfirmation:null });
+  const updates = { installedVersion:VERSION, historyMode:'metadata-redacted', identityMode:'user-session', credentialPolicy:'native-owned', permissionTiers:state.permissionTiers };
+  if (existing.historyEnabled === null) updates.historyEnabled = true;
+  if (existing.historyLimit === null) updates.historyLimit = 100;
+  if (existing.requireConfirmation === null) updates.requireConfirmation = true;
+  await chrome.storage.local.set(updates);
   connectControlPlane().catch(() => {});
+  if (details?.reason === 'install') { await chrome.storage.local.set({ onboardingStartedAt:new Date().toISOString(), onboardingComplete:false }); await chrome.tabs.create({ url:chrome.runtime.getURL('onboarding.html') }); }
 });
 
 chrome.runtime.onStartup.addListener(() => { Promise.all([migratePrivacyStorage(), ensureInstanceIdentity()]).then(() => connectControlPlane()).catch(() => {}); });
@@ -446,6 +460,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       const connected = await connectControlPlane();
       return { ok:connected || nativeReady, nativeStatus };
     }
+    if (request.type === 'health.get') return await healthSnapshot();
+    if (request.type === 'onboarding.complete') { await chrome.storage.local.set({ onboardingComplete:true, onboardingCompletedAt:new Date().toISOString() }); return { ok:true }; }
+    if (request.type === 'onboarding.open') { await chrome.tabs.create({ url:chrome.runtime.getURL('onboarding.html') }); return { ok:true }; }
     if (request.type === 'native.status') return { ok:true, nativeStatus };
     if (request.type === 'native.profile.list') return await nativeRequest('profile.list');
     if (request.type === 'native.profile.save') return await nativeRequest('profile.save', { name:request.name, profile:sanitizeSshProfile(request.profile || {}) });

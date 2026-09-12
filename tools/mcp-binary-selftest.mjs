@@ -5,7 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 const exe = path.resolve('dist/native/986code-mcp.exe');
 const transport = new StdioClientTransport({ command: exe, cwd: process.cwd(), env: { ...process.env }, stderr: 'pipe' });
-const client = new Client({ name: '986code-binary-selftest', version: '0.1.0-alpha.5' });
+const client = new Client({ name: '986code-binary-selftest', version: '0.1.0-alpha.6-dev' });
 try {
   await client.connect(transport);
   await client.ping();

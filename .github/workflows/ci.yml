@@ -33,6 +33,7 @@ jobs:
           node --check extension/bridge-content.js
           node --check extension/command.js
           node --check extension/options.js
+          node --check extension/onboarding.js
           node --check extension/popup.js
           node --check native/native-host.cjs
           node --check native/cli.cjs

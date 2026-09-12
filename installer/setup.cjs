@@ -6,7 +6,7 @@ const { spawnSync } = require('node:child_process');
 const zlib = require('node:zlib');
 const sea = require('node:sea');
 
-const VERSION = '0.1.0-alpha.5';
+const VERSION = '0.1.0-alpha.6-dev';
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
 const DEFAULT_EXTENSION_ID = process.env['986CODE_EXTENSION_ID'] || '';
 const HOME = path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');

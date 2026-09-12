@@ -62,7 +62,7 @@ $InstallInfo = [ordered]@{
   cliExe = (Join-Path $Bin '986code.exe')
   mcpExe = (Join-Path $Bin '986code-mcp.exe')
   manifest = $Manifest
-  version = '0.1.0-alpha.5'
+  version = '0.1.0-alpha.6-dev'
 }
 [System.IO.File]::WriteAllText((Join-Path $Root 'install.json'), ($InstallInfo | ConvertTo-Json), $Utf8NoBom)
 Write-Host '986Code Bridge Native Control Plane installed.'

@@ -7,9 +7,24 @@ The project uses semantic versioning while the command API is still in alpha.
 ## [Unreleased]
 
 ### Planned
-- First-run onboarding, automatic instance labelling, and clearer connection health UX.
-- Stronger command provenance and operation IDs.
+- Command provenance and operation IDs.
 - Broader automated Chrome / Edge / Opera compatibility coverage.
+
+## [0.1.0-alpha.6-dev] - In development
+
+### Added
+- First-run onboarding wizard for browser identity, Native Messaging, installer command, health checks and permission policy.
+- Automatic browser-family instance labels for Opera, Edge, Chrome and Chromium.
+- Live System Health diagnostics for extension, Native Messaging, native host, loopback control plane, MCP binary, SSH client, permission tiers and version parity.
+- Control-plane latency measurement and onboarding completion tracking.
+
+### Changed
+- Alpha.5 user settings are preserved during alpha.6 upgrades instead of being reset on extension update.
+- Options now exposes health refresh, onboarding access and an installer command helper.
+
+### Security
+- POWER remains disabled by default and is regression-tested.
+- Control-plane health is only considered ready when bound to 127.0.0.1.
 
 ## [0.1.0-alpha.5] - 2026-09-10
 
