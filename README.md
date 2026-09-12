@@ -2,12 +2,21 @@
 
 A user-controlled Chromium browser automation bridge developed by **AbeyyTechXy**.
 
-**Current release:** `v0.1.0-alpha.5`
-**Status:** Alpha / development-ready browser bridge with a Windows native control plane, CLI, MCP adapter, and installer.
+**Stable prerelease:** `v0.1.0-alpha.5`
+**Development branch:** `v0.1.0-alpha.6-dev`
+**Status:** Alpha. Alpha.6 development focuses on first-run onboarding, live health diagnostics, upgrade safety, and browser-profile clarity.
 
 986Code lets a user pass structured commands to a Chromium extension to inspect pages, manage tabs, click, type, tick controls, scroll, read values, use optional CDP power tools, and route local automation through an authenticated Windows native control plane.
 
 > This is a third-party project. It is not affiliated with, endorsed by, or maintained by OpenAI, Opera Software, Anthropic, or Google.
+
+## Alpha.6 development focus
+
+- First-run setup wizard with automatic browser/profile identity.
+- Live System Health dashboard for Native Messaging, native host, loopback control plane, MCP, SSH, permissions and version parity.
+- Health latency reporting and clear READY / PARTIAL / ISSUE states.
+- Upgrade-safe settings: alpha.5 history and confirmation preferences are preserved.
+- POWER remains disabled by default.
 
 ## Design principles
 

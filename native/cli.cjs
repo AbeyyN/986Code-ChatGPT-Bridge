@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const VERSION = '0.1.0-alpha.5';
+const VERSION = '0.1.0-alpha.6-dev';
 const HOME = process.env['986CODE_HOME'] || path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');
 const INSTANCE_DIR = path.join(HOME, 'instances');
 const PROFILE_FILE = path.join(HOME, 'profiles.json');

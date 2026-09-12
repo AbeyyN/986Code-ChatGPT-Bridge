@@ -1,25 +1,25 @@
 {
-    "name":  "986code-chatgpt-bridge",
-    "version":  "0.1.0-alpha.5",
-    "private":  true,
-    "type":  "module",
-    "description":  "Build and test tooling for 986Code Bridge.",
-    "scripts":  {
-                    "test:security":  "node tools/security-selftest.mjs",
-                    "test:native":  "node tools/native-controlplane-selftest.cjs",
-                    "test:mcp":  "node tools/mcp-selftest.mjs",
-                    "test:mcp:binary":  "node tools/mcp-binary-selftest.mjs",
-                    "test:mcp:live":  "node tools/mcp-live-e2e.mjs",
-                    "test":  "npm run test:security \u0026\u0026 npm run test:native \u0026\u0026 npm run test:mcp",
-                    "build:mcp":  "esbuild mcp/server.mjs --bundle --platform=node --format=cjs --target=node22 --outfile=dist/mcp/986code-mcp.bundle.cjs",
-                    "test:mcp-binary":  "node tools/mcp-binary-selftest.mjs"
-                },
-    "dependencies":  {
-                         "@modelcontextprotocol/server":  "2.0.0",
-                         "zod":  "4.6.1"
-                     },
-    "devDependencies":  {
-                            "@modelcontextprotocol/client":  "2.0.0",
-                            "esbuild":  "0.28.2"
-                        }
+  "name": "986code-chatgpt-bridge",
+  "version": "0.1.0-alpha.6-dev",
+  "private": true,
+  "type": "module",
+  "description": "Build and test tooling for 986Code Bridge.",
+  "scripts": {
+    "test:security": "node tools/security-selftest.mjs",
+    "test:native": "node tools/native-controlplane-selftest.cjs",
+    "test:mcp": "node tools/mcp-selftest.mjs",
+    "test:mcp:binary": "node tools/mcp-binary-selftest.mjs",
+    "test:mcp:live": "node tools/mcp-live-e2e.mjs",
+    "test": "npm run test:security && npm run test:native && npm run test:mcp",
+    "build:mcp": "esbuild mcp/server.mjs --bundle --platform=node --format=cjs --target=node22 --outfile=dist/mcp/986code-mcp.bundle.cjs",
+    "test:mcp-binary": "node tools/mcp-binary-selftest.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "zod": "4.6.1"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "esbuild": "0.28.2"
+  }
 }

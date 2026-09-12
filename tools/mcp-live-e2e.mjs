@@ -4,7 +4,7 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 const command = process.env['986CODE_MCP_EXE'] || path.resolve('dist/native/986code-mcp.exe');
-const client = new Client({ name: '986code-live-e2e', version: '0.1.0-alpha.5' });
+const client = new Client({ name: '986code-live-e2e', version: '0.1.0-alpha.6-dev' });
 const transport = new StdioClientTransport({ command, cwd: process.cwd(), env: { ...process.env }, stderr: 'pipe' });
 const textJson = (result) => JSON.parse(result.content.find((x) => x.type === 'text')?.text || '{}');
 try {

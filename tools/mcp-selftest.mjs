@@ -14,7 +14,7 @@ const transport = new StdioClientTransport({
   env: { ...process.env },
   stderr: 'pipe'
 });
-const client = new Client({ name: '986code-selftest', version: '0.1.0-alpha.5' });
+const client = new Client({ name: '986code-selftest', version: '0.1.0-alpha.6-dev' });
 try {
   await client.connect(transport);
   assert.deepEqual(await client.ping(), {});

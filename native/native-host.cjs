@@ -7,7 +7,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 
-const VERSION = '0.1.0-alpha.5';
+const VERSION = '0.1.0-alpha.6-dev';
 const HOST_NAME = 'com.abeyytechxy.986code_bridge';
 const HOME = process.env['986CODE_HOME'] || path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');
 const INSTANCE_DIR = path.join(HOME, 'instances');
@@ -323,7 +323,10 @@ async function handleNativeRequest(message) {
       instanceId: instance?.instanceId,
       label: instance?.label,
       permissions: instance?.permissions,
-      controlPlane: address && typeof address !== 'string' ? { host: '127.0.0.1', port: address.port } : null
+      controlPlane: address && typeof address !== 'string' ? { host: '127.0.0.1', port: address.port } : null,
+      mcpAvailable: fs.existsSync(path.join(path.dirname(process.execPath), '986code-mcp.exe')) || fs.existsSync(path.join(HOME, 'bin', '986code-mcp.exe')),
+      cliAvailable: fs.existsSync(path.join(path.dirname(process.execPath), '986code.exe')) || fs.existsSync(path.join(HOME, 'bin', '986code.exe')),
+      sshClient: (() => { try { return path.basename(findSshExecutable()); } catch (_) { return null; } })()
     };
   }
   throw new Error(`Unsupported native request: ${action}`);

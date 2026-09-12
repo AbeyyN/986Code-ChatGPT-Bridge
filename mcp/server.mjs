@@ -5,7 +5,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 
-const VERSION = '0.1.0-alpha.5';
+const VERSION = '0.1.0-alpha.6-dev';
 const HOME = process.env['986CODE_HOME'] || path.join(process.env.LOCALAPPDATA || os.homedir(), '986Code', 'Bridge');
 const INSTANCE_DIR = path.join(HOME, 'instances');
 

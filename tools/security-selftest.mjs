@@ -3,6 +3,7 @@ import vm from 'node:vm';
 
 const bg = fs.readFileSync('extension/background.js', 'utf8');
 const opt = fs.readFileSync('extension/options.html', 'utf8');
+const onboarding = fs.readFileSync('extension/onboarding.html', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'));
 
 const noopEvent = { addListener() {} };
@@ -33,11 +34,14 @@ if (redacted.url !== 'https://example.com/path') throw new Error('URL query/hash
 const profile = sec.sanitizeSshProfile({ host:'server.test', port:22, username:'user', password:'demo', keyPath:'C:/key', authMethod:'keyfile' });
 if ('password' in profile) throw new Error('SSH profile sanitizer retained a secret field');
 if (profile.authMethod !== 'keyfile') throw new Error('SSH auth method sanitizer failed');if (/type=["']password["']/i.test(opt)) throw new Error('Password input must not exist in extension UI');
-if (manifest.version_name !== '0.1.0-alpha.5') throw new Error('Unexpected manifest version');
+if (manifest.version_name !== '0.1.0-alpha.6-dev') throw new Error('Unexpected manifest version');
 if (!manifest.permissions.includes('debugger')) throw new Error('Debugger permission must be required for Chromium/Edge');
 if ((manifest.optional_permissions || []).includes('debugger')) throw new Error('Debugger permission must not be optional');
 
-const combined = bg + '\n' + opt;
+if (!onboarding.includes('FIRST-RUN SETUP')) throw new Error('Alpha.6 onboarding page missing');
+if (!bg.includes("request.type === 'health.get'")) throw new Error('Alpha.6 health endpoint missing');
+if (!bg.includes('power: false')) throw new Error('POWER must default to false');
+const combined = bg + '\n' + opt + '\n' + onboarding;
 for (const re of [
   /sk-[A-Za-z0-9_-]{20,}/,
   /gh[pousr]_[A-Za-z0-9]{20,}/,

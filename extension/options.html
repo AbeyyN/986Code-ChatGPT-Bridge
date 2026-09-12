@@ -8,7 +8,7 @@
 </head>
 <body>
   <main>
-    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.5</p></div></header>
+    <header><img src="icons/icon128.png" alt="986Code"/><div><h1>986Code Bridge for ChatGPT</h1><p>Settings · v0.1.0-alpha.6-dev</p></div></header>
 
     <section class="card">
       <h2>Bridge identity</h2>
@@ -20,6 +20,14 @@
       <label>Instance label<input id="instanceLabel" placeholder="PERSONAL-OPERA" maxlength="64" /></label>
       <div class="row"><button id="saveIdentity" class="primary">Save instance</button><button id="connectNative">Connect control plane</button></div>
       <p class="note">Each browser profile gets its own instance ID. Use labels such as PERSONAL-OPERA and WORK-OPERA to prevent cross-profile targeting.</p>
+    </section>
+
+    <section class="card">
+      <div class="section-head"><div><h2>System health</h2><p>Live diagnostics for this browser instance.</p></div><button id="refreshHealth" class="primary">Refresh</button></div>
+      <div class="kv"><span>Browser</span><code id="healthBrowser">—</code></div>
+      <div class="kv"><span>Control latency</span><code id="healthLatency">—</code></div>
+      <div id="healthChecks" class="health-grid"><p class="note">Loading health data…</p></div>
+      <div class="row"><button id="openOnboarding">Setup wizard</button><button id="copyInstaller">Copy installer command</button></div>
     </section>
 
     <section class="card">

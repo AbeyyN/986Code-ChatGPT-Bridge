@@ -52,6 +52,7 @@ async function togglePermission(permission) {
   else changed = await chrome.permissions.request({ permissions:[permission] });
   $('permStatus').textContent = changed ? `${permission}: ${enabled ? 'disabled' : 'enabled'}.` : `${permission}: permission unchanged.`;
   await updatePermButtons();
+  await refreshHealth().catch(() => null);
   if (permission === 'nativeMessaging' && !enabled && changed) {
     await send({ type:'native.connect' }).catch(() => null);
     setTimeout(refreshNativeStatus, 300);
@@ -61,6 +62,12 @@ async function togglePermission(permission) {
 function safe(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function renderHealth(h={}) {
+  $('healthBrowser').textContent=h.browser||'—'; $('healthLatency').textContent=h.latencyMs==null?'—':`${h.latencyMs} ms`;
+  $('healthChecks').innerHTML=(h.checks||[]).map(c=>`<div class="health-item ${safe(c.status)}"><strong>${safe(c.label)}</strong><small>${safe(c.detail)}</small></div>`).join('')||'<p class="note">No health data yet.</p>';
+}
+async function refreshHealth(){const h=await send({type:'health.get'});if(!h?.ok)throw new Error(h?.error||'Health check failed');renderHealth(h);return h;}
+
 function profileHtml(name, p) {
   const ref = p.authMethod === 'keyfile' ? (p.keyPath || 'key file') : 'SSH agent / OS vault';
   return `<div class="profile"><div><strong>${safe(name)}</strong><br><small>${safe(p.username)}@${safe(p.host)}:${safe(p.port || 22)} · ${safe(p.authMethod || 'agent')} · ${safe(ref)}</small></div><button data-delete="${safe(name)}">Delete</button></div>`;
@@ -103,6 +110,9 @@ async function saveTiers() {
   alert('Permission tiers saved.');
 }
 
+$('refreshHealth').addEventListener('click',()=>refreshHealth().catch(e=>alert(e.message)));
+$('openOnboarding').addEventListener('click',()=>send({type:'onboarding.open'}));
+$('copyInstaller').addEventListener('click',async()=>{const i=await send({type:'info'});navigator.clipboard.writeText(`986CodeBridge-Setup-v0.1.0-alpha.6.exe --extension-id ${i.extensionId||chrome.runtime.id}`);});
 $('nativeBtn').addEventListener('click', () => togglePermission('nativeMessaging'));
 $('saveIdentity').addEventListener('click', saveInstance);
 $('saveTiers').addEventListener('click', saveTiers);
@@ -135,6 +145,7 @@ $('clearHistory').addEventListener('click', async () => {
 (async () => {
   await info();
   await updatePermButtons();
+  await refreshHealth().catch(() => null);
   const settings = await chrome.storage.local.get({ historyEnabled:true, historyLimit:100 });
   $('historyEnabled').checked = settings.historyEnabled !== false;
   $('historyLimit').value = settings.historyLimit || 100;
@@ -147,4 +158,5 @@ $('clearHistory').addEventListener('click', async () => {
     $('profiles').innerHTML = '<p class="note">Enable Native Messaging to manage native SSH profiles.</p>';
   }
   setInterval(refreshNativeStatus, 2500);
+  setInterval(() => refreshHealth().catch(() => null), 5000);
 })();

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>986Code Bridge Setup</title>
+  <link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <img src="icons/icon128.png" alt="986Code" />
+      <div><p class="eyebrow">FIRST-RUN SETUP</p><h1>986Code Bridge</h1><p>v0.1.0-alpha.6-dev · Onboarding & Health</p></div>
+      <span id="overall" class="pill">CHECKING</span>
+    </header>
+    <section class="card intro">
+      <h2>Connect this browser profile safely</h2>
+      <p>986Code keeps browser identity and credentials owned by this user. POWER remains off unless you explicitly enable it.</p>
+      <div class="identity"><span>Browser</span><strong id="browser">—</strong><span>Instance</span><strong id="instance">—</strong></div>
+    </section>
+    <section class="card">
+      <div class="section-head"><div><h2>1 · Extension identity</h2><p>Use a clear label for this browser profile.</p></div><span id="identityState" class="mini">WAIT</span></div>
+      <label>Instance label<input id="instanceLabel" maxlength="64" placeholder="PERSONAL-OPERA" /></label>
+      <div class="actions"><button id="saveIdentity" class="primary">Save label</button><button id="copyId">Copy Extension ID</button></div>
+      <code id="extensionId">—</code>
+    </section>    <section class="card">
+      <div class="section-head"><div><h2>2 · Native control plane</h2><p>Optional for MCP, SSH and local loopback control.</p></div><span id="nativeState" class="mini">WAIT</span></div>
+      <div id="nativeHint" class="hint">Checking Native Messaging permission…</div>
+      <div class="actions"><button id="nativeBtn" class="primary">Enable Native Messaging</button><button id="connectBtn">Connect / refresh</button></div>
+      <div class="command-wrap"><span>Installer command</span><button id="copyInstall">Copy</button></div>
+      <pre id="installCommand">—</pre>
+    </section>
+    <section class="card">
+      <div class="section-head"><div><h2>3 · Health check</h2><p>Every component is checked before you continue.</p></div><span id="healthState" class="mini">WAIT</span></div>
+      <div id="healthGrid" class="health-grid"></div>
+      <div class="actions"><button id="refreshHealth" class="primary">Run health check</button><button id="openOptions">Advanced settings</button></div>
+    </section>
+    <section class="card security">
+      <h2>4 · Permission policy</h2>
+      <div class="policy"><span>READ</span><strong>ON</strong><span>WRITE</span><strong id="writeTier">ON</strong><span>POWER</span><strong id="powerTier">OFF</strong></div>
+      <p>POWER controls CDP, SSH and native power tools. It stays OFF by default and can be enabled later from Options.</p>
+      <button id="finishBtn" class="primary finish">Finish setup</button>
+      <p id="finishNote" class="note"></p>
+    </section>
+    <footer>986Code / AbeyyTechXy · Local-first browser automation bridge.</footer>
+  </main>
+  <script src="onboarding.js"></script>
+</body>
+</html>
