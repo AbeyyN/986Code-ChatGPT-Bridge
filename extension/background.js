@@ -163,6 +163,10 @@ function scheduleNativeReconnect(delay = 3000) {
 
 async function nativeRequest(action, payload = {}, timeoutMs = 30000) {
   await connectControlPlane();
+  if (nativePort && !nativeReady) {
+    const deadline = Date.now() + Math.min(5000, Math.max(1000, Number(timeoutMs || 30000)));
+    while (nativePort && !nativeReady && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+  }
   if (!nativePort || !nativeReady) throw new Error(nativeStatus.error || 'Native control plane is not ready.');
   const requestId = uuid();
   return await new Promise((resolve, reject) => {
